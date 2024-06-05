@@ -1,12 +1,12 @@
 "use client"
 
 import Link from "next/link";
-import { toast } from "sonner";
+import {toast} from "sonner";
 import {Loader2} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
-import { Toaster } from "@/components/ui/sonner"
+import {Toaster} from "@/components/ui/sonner"
 import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
@@ -80,6 +80,7 @@ export default function Page() {
 
     // TODO ajustar classe
     const handleMusicName = (event: any) => {
+        console.log(typeof event)
         setMusicName(event.target.value);
     }
 
@@ -87,9 +88,9 @@ export default function Page() {
 
     return (
         <div className="w-full">
-            <Toaster />
+            <Toaster/>
             <div className="flex items-center justify-center py-12">
-                <div className="mx-auto grid w-[350px] gap-6">
+                <div className="mx-auto grid w-[500px] gap-6">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <div className="grid gap-2 text-center">
                             <h1 className="text-3xl font-bold">Download</h1>
@@ -110,39 +111,40 @@ export default function Page() {
                                 />
                             </div>
                             {videoInfoLoading &&
-                                <Button disabled>
-                                    <Loader2 className="mr-2 h-4 w-full animate-spin"/>
+                                <Button disabled className="flex justify-center items-center">
+                                    <Loader2 className="h-4 animate-spin w-full"/>
                                     Analisando vídeo...
                                 </Button>}
                             {!videoInfoLoading &&
-                                <Button type="submit" className="w-full">
-                                    Analisar vídeo
-                                </Button>}
-                            {downloadAvailable &&
-                                <div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="link">Nome da música</Label>
-                                        <Input
-                                            id="link"
-                                            type="url"
-                                            placeholder="Musica.mp3"
-                                            value={musicName}
-                                            required
-                                            onChange={handleMusicName}
-                                        />
-                                    </div>
-                                    {downloading &&
-                                        <Button disabled>
-                                            <Loader2 className="mr-2 h-4 w-full animate-spin"/>
-                                            Baixando música...
-                                        </Button>
-                                    }
-                                    {!downloading &&
-                                        <Button type="button" className="w-full" onClick={() => download() }>
-                                            Baixar música
-                                        </Button>
-                                    }
+                                <div className="flex justify-center items-center">
+                                    <Button type="submit" className="w-full">
+                                        Analisar vídeo
+                                    </Button>
                                 </div>
+                            }
+                            {downloadAvailable &&
+                                <div className="grid gap-2">
+                                    <Label htmlFor="link">Nome da música</Label>
+                                    <Input
+                                        id="link"
+                                        type="url"
+                                        placeholder="Musica.mp3"
+                                        value={musicName}
+                                        required
+                                        onChange={handleMusicName}
+                                    />
+                                </div>
+                            }
+                            {downloadAvailable && downloading &&
+                                <Button disabled className="flex justify-center items-center">
+                                    <Loader2 className="h-4 w-4 animate-spin"/>
+                                    Baixando música...
+                                </Button>
+                            }
+                            {downloadAvailable && !downloading &&
+                                <Button type="button" className="w-full" onClick={() => download()}>
+                                    Baixar música
+                                </Button>
                             }
                         </div>
                         <div className="mt-4 text-center text-sm">
