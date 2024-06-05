@@ -10,11 +10,12 @@ import {Toaster} from "@/components/ui/sonner"
 import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
-import {useState} from "react";
+import React, {useState} from "react";
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
+import {invokeTauriCommand} from "@tauri-apps/api/helpers/tauri";
 
 const downloadVideoSchema = z.object({
     url: z.string().url()
@@ -31,7 +32,7 @@ export default function Page() {
     const [musicName, setMusicName] = useState('');
     const [videoUrl, setVideoUrl] = useState('');
 
-    const {register, handleSubmit} = useForm<DownloadVideoSchema>({
+    const {register, handleSubmit, reset} = useForm<DownloadVideoSchema>({
         resolver: zodResolver(downloadVideoSchema),
     });
 
@@ -48,6 +49,16 @@ export default function Page() {
         setDownloadAvailable(true);
     }
 
+    function openToast(musicPath: string) {
+        toast.success("O download foi finalizado", {
+            action: {
+                label: "Abrir pasta",
+                onClick: () => openFileInNativeFileExplorer(musicPath),
+            },
+            description: `A música ${musicName} foi salva em ${musicPath}`,
+        });
+    }
+
     async function download() {
         setDownloading(true);
         const outputPath = '/Users/joaogabriel/env-dev/temp/mp3-downloads';
@@ -58,17 +69,11 @@ export default function Page() {
         console.log('response', response)
         setDownloading(false);
         console.log('calling toast');
-        toast("O download foi finalizado", {
-            action: {
-                label: "Abrir pasta",
-                onClick: () => console.log("Undo"),
-            },
-            description: `A música ${musicName} foi salva em ${outputPath}`,
-        });
+        openToast(outputPath + '/' + musicName);
         console.log('toast called');
     }
 
-    const sanitizeMusicName = (musicName: string) => {
+    function sanitizeMusicName(musicName: string) {
         if (!musicName) return '';
         const stringWithoutSpecialChars = musicName.replace(/[^a-zA-Z ]/g, '');
         return stringWithoutSpecialChars.split(' ')
@@ -78,10 +83,34 @@ export default function Page() {
             .concat(defaultMusicExtension);
     }
 
-    // TODO ajustar classe
-    const handleMusicName = (event: any) => {
-        console.log(typeof event)
+    function handleMusicName(event: React.ChangeEvent<HTMLInputElement>) {
+        console.log(typeof event, event.constructor.name, event.target.value)
         setMusicName(event.target.value);
+    }
+
+    function resetFormState() {
+        reset();
+        setDownloadAvailable(false);
+        setVideoUrl('');
+        setMusicName('');
+    }
+
+    // TODO refatorar
+    async function openFileInNativeFileExplorer(
+        defaultPath: string
+    ): Promise<null | string | string[]> {
+        const options = {
+            defaultPath
+        }
+        let res = invokeTauriCommand({
+            __tauriModule: 'Dialog',
+            message: {
+                cmd: 'openDialog',
+                options
+            }
+        })
+
+        return res as any;
     }
 
     // const onError = (errors, e) => console.log(errors, e);
@@ -106,6 +135,7 @@ export default function Page() {
                                     type="url"
                                     placeholder="https..."
                                     defaultValue={"https://www.youtube.com/watch?v=I_BBfcIcv0g"}
+                                    disabled={downloadAvailable}
                                     required
                                     {...register('url')}
                                 />
@@ -115,7 +145,7 @@ export default function Page() {
                                     <Loader2 className="h-4 animate-spin w-full"/>
                                     Analisando vídeo...
                                 </Button>}
-                            {!videoInfoLoading &&
+                            {!videoInfoLoading && !downloadAvailable &&
                                 <div className="flex justify-center items-center">
                                     <Button type="submit" className="w-full">
                                         Analisar vídeo
@@ -148,9 +178,9 @@ export default function Page() {
                             }
                         </div>
                         <div className="mt-4 text-center text-sm">
-                            Está dando algum problema?{" "}
-                            <Link href="#" className="underline">
-                                Tente novamente
+                            Quer começar de novo ou baixar outra música?{" "}
+                            <Link href="#" className="underline" onClick={() => resetFormState()}>
+                                Clique aqui
                             </Link>
                         </div>
                     </form>
