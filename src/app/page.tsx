@@ -10,13 +10,13 @@ import {Toaster} from "@/components/ui/sonner"
 import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
-import React, {useEffect, useState} from "react";
+import React, {useState} from "react";
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
 import {invokeTauriCommand} from "@tauri-apps/api/helpers/tauri";
-import { readText } from '@tauri-apps/api/clipboard';
+import ClipboardInspect from "@/components/internal/clipboard-inspect";
 
 const downloadVideoSchema = z.object({
     url: z.string().url()
@@ -37,23 +37,12 @@ export default function Page() {
         resolver: zodResolver(downloadVideoSchema),
     });
 
-    useEffect(() => {
-        console.log('use effect')
-        setupAppWindow();
-    }, [])
-
-    async function setupAppWindow() {
-        const appWindow = (await import('@tauri-apps/api/window')).appWindow
-        const unlisten = await appWindow.listen('tauri://focus', () => {
-            onWindowFocused();
+    const updateVideoUrl = async (url: string) => {
+        console.log('updateVideoUrl', url)
+        setVideoUrl(url);
+        await onSubmit({
+            url: url
         });
-        // unlisten();
-    }
-
-    async function onWindowFocused() {
-        console.log('A janela principal foi trazida para o foreground!');
-        const clipboardText = await readText();
-        console.log(clipboardText);
     }
 
     async function onSubmit(data: DownloadVideoSchema) {
@@ -137,6 +126,7 @@ export default function Page() {
     return (
         <div className="w-full">
             <Toaster/>
+            <ClipboardInspect updateVideoUrl={updateVideoUrl}></ClipboardInspect>
             <div className="flex items-center justify-center py-12">
                 <div className="mx-auto grid w-[500px] gap-6">
                     <form onSubmit={handleSubmit(onSubmit)}>
