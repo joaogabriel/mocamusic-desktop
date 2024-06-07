@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type {Metadata} from "next";
+import {Inter} from "next/font/google";
 import "./globals.css";
 import Link from 'next/link';
-import { ReactNode } from 'react';
-import { Menu, Music } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {ReactNode} from 'react';
+import {Menu, Music} from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {Sheet, SheetContent, SheetTrigger} from "@/components/ui/sheet";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -46,18 +46,6 @@ const Layout = ({ children }: LayoutProps) => {
               <span className="sr-only">Moca Music</span>
             </Link>
             <h1>Moca Music Desktop 1.0</h1>
-            <Link
-                href="/"
-                className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Baixar nova música
-            </Link>
-            <Link
-                href="/configs"
-                className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Configurações
-            </Link>
           </nav>
           <Sheet>
             <SheetTrigger asChild>
