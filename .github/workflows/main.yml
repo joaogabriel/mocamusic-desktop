@@ -26,7 +26,7 @@ jobs:
           default: true
 
       - name: Install PNPM
-        run: npm install -g pnpm
+        run: npm install -g pnpm && pnpm setup
 
       - name: Install Tauri CLI
         run: pnpm install -g @tauri-apps/cli
@@ -35,7 +35,7 @@ jobs:
         run: pnpm install
 
       - name: Build Tauri App
-        run: pnpm run tauri build
+        run: pnpm tauri build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v2
