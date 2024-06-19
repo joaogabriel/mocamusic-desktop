@@ -25,9 +25,6 @@
         "open": true,
         "save": true
       },
-      "shell": {
-        "open": true
-      },
       "clipboard": {
         "all": true,
         "writeText": true,

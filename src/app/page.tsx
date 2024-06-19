@@ -9,16 +9,13 @@ import {Toaster} from "@/components/ui/sonner"
 import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
-import React, {useEffect, useState} from "react";
+import React, {useState} from "react";
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
-import {invokeTauriCommand} from "@tauri-apps/api/helpers/tauri";
-import { shell } from '@tauri-apps/api';
 import ClipboardInspect from "@/components/internal/clipboard-inspect";
-import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
-import open from 'open';
+import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 
 const youtubeRegex = new RegExp('^(https?://)?((www.)?youtube.com/watch\\?v=.+|youtu.be/.+)');
 
@@ -55,16 +52,6 @@ export default function Page() {
     });
 
     const { setValue, reset } = form;
-
-    useEffect(() => {
-        // openFileInNativeFileExplorer('/Users/joaogabriel/env-dev/temp/mp3-downloads/opa.mp3')
-        // shell.open('/Users/joaogabriel/env-dev/temp/mp3-downloads')
-
-// Opens the directory in the default file explorer
-//         (async () => {
-//             await open('/Users/joaogabriel/env-dev/temp/mp3-downloads', {app: {name: open.apps.Finder}});
-//         })();
-    }, []);
 
     const updateVideoUrl = async (url: string) => {
         console.log('updateVideoUrl', url)
@@ -141,22 +128,9 @@ export default function Page() {
         setMusicName('');
     }
 
-    // TODO refatorar
-    async function openFileInNativeFileExplorer(
-        defaultPath: string
-    ): Promise<null | string | string[]> {
-        const options = {
-            defaultPath
-        }
-        let res = invokeTauriCommand({
-            __tauriModule: 'Dialog',
-            message: {
-                cmd: 'openDialog',
-                options
-            }
-        })
-
-        return res as any;
+    async function openFileInNativeFileExplorer(path: string): Promise<void> {
+        const tauri = (await import('@tauri-apps/api')).tauri
+        await tauri.invoke('show_in_folder', {path});
     }
 
     // const onError = (errors, e) => console.log(errors, e);
