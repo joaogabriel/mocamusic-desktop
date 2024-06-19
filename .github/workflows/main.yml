@@ -25,14 +25,17 @@ jobs:
           target: x86_64-pc-windows-msvc
           default: true
 
+      - name: Install PNPM
+        run: npm install -g pnpm
+
       - name: Install Tauri CLI
-        run: npm install -g @tauri-apps/cli
+        run: pnpm install -g @tauri-apps/cli
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install
 
       - name: Build Tauri App
-        run: npm run tauri build
+        run: pnpm run tauri build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v2
