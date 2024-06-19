@@ -6,6 +6,7 @@ import {ReactNode} from 'react';
 import {Menu, Music} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Sheet, SheetContent, SheetTrigger} from "@/components/ui/sheet";
+import DisplayVersion from "@/components/internal/display-version";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -45,7 +46,8 @@ const Layout = ({ children }: LayoutProps) => {
               <Music className="h-6 w-6"/>
               <span className="sr-only">Moca Music</span>
             </Link>
-            <h1>Moca Music Desktop 1.0</h1>
+            <h1>Moca Music Desktop</h1>
+            <DisplayVersion />
           </nav>
           <Sheet>
             <SheetTrigger asChild>
