@@ -77,14 +77,14 @@ async fn fetch_video_info(video_url: String) -> Result<VideoInfo, VideoInfoError
   // }
 }
 
-#[tauri::command]
-async fn download_audio_as_mp3(video_url: String, output_path: String, file_name: String) -> Result<String, String> {
-  let output_dir = PathBuf::from(output_path.clone());
-  let video = Video::new(video_url).unwrap();
-  let path = output_dir.join(file_name);
-  video.download(path).await.unwrap();
-  Ok(format!("Audio downloaded to {:?}", output_path))
-}
+// #[tauri::command]
+// async fn download_audio_as_mp3(video_url: String, output_path: String, file_name: String) -> Result<String, String> {
+//   let output_dir = PathBuf::from(output_path.clone());
+//   let video = Video::new(video_url).unwrap();
+//   let path = output_dir.join(file_name);
+//   video.download(path).await.unwrap();
+//   Ok(format!("Audio downloaded to {:?}", output_path))
+// }
 
 // #[tauri::command]
 // async fn download_audio_as_mp32() {
@@ -121,18 +121,17 @@ async fn download_audio_as_mp3(video_url: String, output_path: String, file_name
 // }
 
 #[tauri::command]
-async fn download_audio_as_mp32() {
-    let path = "/Users/joaogabriel/env-dev/temp/mp3-downloads/file2.mp3";
-
+async fn download_audio_as_mp3(video_id: String, output_path: String, file_name: String) {
+    let output_dir = PathBuf::from(output_path.clone());
+    let path = output_dir.join(file_name);
     match File::create(&path) {
         Ok(mut file) => {
-            let url = "D5zuOU_DKL0";
             let video_options = VideoOptions {
                 quality: VideoQuality::Highest,
                 filter: VideoSearchOptions::VideoAudio,
                 ..Default::default()
             };
-            let video = Video::new_with_options(url, video_options).unwrap();
+            let video = Video::new_with_options(video_id, video_options).unwrap();
             let stream = video
                 .stream_with_ffmpeg(Some(FFmpegArgs {
                     format: Some("mp3".to_string()),
@@ -209,7 +208,7 @@ fn show_in_folder(path: String) {
 
 fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![fetch_video_info, download_audio_as_mp3, download_audio_as_mp32, show_in_folder])
+    .invoke_handler(tauri::generate_handler![fetch_video_info, download_audio_as_mp3, show_in_folder])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
