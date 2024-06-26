@@ -8,7 +8,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "mocamusic-desktop",
+    "productName": "Moca Music",
     "version": "0.1.0"
   },
   "tauri": {
