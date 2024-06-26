@@ -45,8 +45,9 @@ export default function Page() {
     const form = useForm<z.infer<typeof downloadVideoSchema>>({
         resolver: zodResolver(downloadVideoSchema),
         defaultValues: {
+            url: '',
             // url: 'https://www.google.com/',
-            url: 'https://www.youtube.com/watch?v=nM699RCA2AM',
+            // url: 'https://www.youtube.com/watch?v=nM699RCA2AM',
             // url: 'https://www.youtube.com/watch?v=rTJSWmgbVwA',
             musicName: ''
         },
@@ -57,6 +58,7 @@ export default function Page() {
     const updateVideoUrl = async (url: string) => {
         console.log('updateVideoUrl', url)
         setVideoUrl(url);
+        setValue('url', url);
         await onSubmit({
             url: url,
             musicName: ''
@@ -110,7 +112,7 @@ export default function Page() {
 
     function sanitizeMusicName(musicName: string) {
         if (!musicName) return '';
-        const stringWithoutSpecialChars = musicName.replace(/[^a-zA-Z ]/g, '');
+        const stringWithoutSpecialChars = musicName.replace(/[^a-zA-ZÀ-ÿ ]/g, '');
         return stringWithoutSpecialChars.split(' ')
             .filter(str => str.length > 0)
             .map(str => str.trim().charAt(0).toUpperCase() + str.trim().slice(1).toLowerCase())
@@ -160,7 +162,7 @@ export default function Page() {
                                                 <Input
                                                     id="link"
                                                     type="url"
-                                                    placeholder="https..."
+                                                    placeholder="Cole o link do YouTube aqui"
                                                     disabled={downloadAvailable}
                                                     required
                                                     {...field}
