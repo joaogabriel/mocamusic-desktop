@@ -46,7 +46,8 @@ export default function Page() {
         resolver: zodResolver(downloadVideoSchema),
         defaultValues: {
             // url: 'https://www.google.com/',
-            url: 'https://www.youtube.com/watch?v=rTJSWmgbVwA',
+            url: 'https://www.youtube.com/watch?v=nM699RCA2AM',
+            // url: 'https://www.youtube.com/watch?v=rTJSWmgbVwA',
             musicName: ''
         },
     });
@@ -95,14 +96,15 @@ export default function Page() {
             });
             return;
         }
-        const outputPath = '/Users/joaogabriel/env-dev/temp/mp3-downloads';
+        // const outputPath = '/Users/joaogabriel/env-dev/temp/mp3-downloads';
+        const downloadDirPath = await getDownloadDir();
         const downloadAudio = new DownloadAudio();
-        const downloadAudioRequest = new DownloadAudioRequest(videoUrl, outputPath, musicName);
+        const downloadAudioRequest = new DownloadAudioRequest(videoUrl, downloadDirPath, musicName);
         const response = await downloadAudio.execute(downloadAudioRequest);
         console.log('response', response)
         setDownloading(false);
         console.log('calling toast');
-        openToast(outputPath + '/' + musicName);
+        openToast(downloadDirPath + '/' + musicName);
         console.log('toast called');
     }
 
@@ -131,6 +133,10 @@ export default function Page() {
     async function openFileInNativeFileExplorer(path: string): Promise<void> {
         const tauri = (await import('@tauri-apps/api')).tauri
         await tauri.invoke('show_in_folder', {path});
+    }
+
+    async function getDownloadDir() {
+        return (await import('@tauri-apps/api/path')).downloadDir();
     }
 
     // const onError = (errors, e) => console.log(errors, e);
