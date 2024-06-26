@@ -2,10 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::fmt;
-use rusty_ytdl::{Video};
+use rusty_ytdl::{FFmpegArgs, Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::process::Command;
+use std::fs::File;
+use std::io::prelude::*;
 
 #[derive(Serialize)]
 struct VideoInfo {
@@ -47,7 +49,7 @@ async fn fetch_video_info(video_url: String) -> Result<VideoInfo, VideoInfoError
       _ => VideoInfoError::UnknownError(e.to_string()),
     }
   })?;
-  println!("{:#?}",video_info);
+  // println!("{:#?}",video_info);
 
   Ok(VideoInfo {
     title: video_info.video_details.title,
@@ -82,6 +84,80 @@ async fn download_audio_as_mp3(video_url: String, output_path: String, file_name
   let path = output_dir.join(file_name);
   video.download(path).await.unwrap();
   Ok(format!("Audio downloaded to {:?}", output_path))
+}
+
+// #[tauri::command]
+// async fn download_audio_as_mp32() {
+//     let url = "FZ8BxMU3BYc";
+//
+//     let video_options = VideoOptions {
+//         quality: VideoQuality::Highest,
+//         filter: VideoSearchOptions::VideoAudio,
+//         ..Default::default()
+//     };
+//
+//     let path = "/file.mp3"; // specify path here
+//
+//     let mut file = File::create(path)?;
+//
+//     let video = Video::new_with_options(url, video_options).unwrap();
+//
+//     let stream = video
+//         .stream_with_ffmpeg(Some(FFmpegArgs {
+//             format: Some("mp3".to_string()),
+//             audio_filter: Some("aresample=48000,asetrate=48000*0.8".to_string()),
+//             video_filter: Some("eq=brightness=150:saturation=2".to_string()),
+//         }))
+//         .await
+//         .unwrap();
+//
+//     while let Some(chunk) = stream.chunk().await.unwrap() {
+//         // println!("{:#?}", chunk);
+//         if let Err(e) = file.write_all(&chunk) {
+//             eprintln!("Failed to write to file: {}", e);
+//             break;
+//         }
+//     }
+// }
+
+#[tauri::command]
+async fn download_audio_as_mp32() {
+    let path = "/Users/joaogabriel/env-dev/temp/mp3-downloads/file2.mp3";
+
+    match File::create(&path) {
+        Ok(mut file) => {
+            let url = "D5zuOU_DKL0";
+            let video_options = VideoOptions {
+                quality: VideoQuality::Highest,
+                filter: VideoSearchOptions::VideoAudio,
+                ..Default::default()
+            };
+            let video = Video::new_with_options(url, video_options).unwrap();
+            let stream = video
+                .stream_with_ffmpeg(Some(FFmpegArgs {
+                    format: Some("mp3".to_string()),
+                    audio_filter: None,
+                    video_filter: None,
+                }))
+                .await
+                .unwrap();
+
+            while let Some(chunk) = stream.chunk().await.unwrap() {
+                if let Err(e) = file.write_all(&chunk) {
+                    println!("Failed to write to file: {}", e);
+                    break;
+                }
+            }
+
+            // sync_all after the loop
+            if let Err(sync_err) = file.sync_all() {
+                println!("Failed to write data to file: {}", sync_err);
+            }
+        },
+        Err(e) => {
+            println!("Failed to create file: {}", e);
+        }
+    }
 }
 
 #[tauri::command]
@@ -133,7 +209,7 @@ fn show_in_folder(path: String) {
 
 fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![fetch_video_info, download_audio_as_mp3, show_in_folder])
+    .invoke_handler(tauri::generate_handler![fetch_video_info, download_audio_as_mp3, download_audio_as_mp32, show_in_folder])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
