@@ -46,3 +46,14 @@ Filename: "./app-icon.png"
 Doc: https://tauri.app/v1/guides/features/icons/
 
 Original images: icons/original
+
+# Life Cycle Development (in progress)
+
+Steps:
+
+1. ``git flow feature start [feature-name]``
+2. ``git flow feature finish [feature-name]``
+3. ``git flow release start [release-name]``
+4. ``npm patch/minor/release``
+5. ``git flow release finish [release-name]``
+6. ``git push origin --tags``
