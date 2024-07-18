@@ -14,7 +14,6 @@ import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
-import ClipboardInspect from "@/components/internal/clipboard-inspect";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 
 const youtubeRegex = new RegExp('^(https?://)?((www.)?youtube.com/watch\\?v=.+|youtu.be/.+)');
@@ -45,16 +44,16 @@ export default function Page() {
     const form = useForm<z.infer<typeof downloadVideoSchema>>({
         resolver: zodResolver(downloadVideoSchema),
         defaultValues: {
-            // url: '',
+            url: '',
             // url: 'https://www.google.com/',
             // url: 'https://www.youtube.com/watch?v=nM699RCA2AM',
             // url: 'https://www.youtube.com/watch?v=rTJSWmgbVwA',
-            url: 'https://www.youtube.com/watch?v=6RTg7ovfaLk',
+            // url: 'https://www.youtube.com/watch?v=6RTg7ovfaLk',
             musicName: ''
         },
     });
 
-    const { setValue, reset } = form;
+    const {setValue, reset} = form;
 
     const updateVideoUrl = async (url: string) => {
         console.log('updateVideoUrl', url)
@@ -109,6 +108,7 @@ export default function Page() {
         console.log('calling toast');
         openToast(downloadDirPath + '/' + musicName);
         console.log('toast called');
+        resetFormState();
     }
 
     function sanitizeMusicName(musicName: string) {
@@ -147,7 +147,7 @@ export default function Page() {
     return (
         <div className="w-full">
             <Toaster/>
-            <ClipboardInspect updateVideoUrl={updateVideoUrl}></ClipboardInspect>
+            {/*<ClipboardInspect updateVideoUrl={updateVideoUrl}></ClipboardInspect>*/}
             <div className="flex items-center justify-center py-12">
                 <div className="mx-auto grid w-[500px] gap-6">
                     <Form {...form}>
@@ -218,9 +218,8 @@ export default function Page() {
                                     </Button>
                                 }
                                 <div className="text-center text-sm">
-                                    Quer começar de novo ou baixar outra música?{" "}
                                     <Link href="#" className="underline" onClick={() => resetFormState()}>
-                                        Clique aqui
+                                        Começar de novo
                                     </Link>
                                 </div>
                             </div>
