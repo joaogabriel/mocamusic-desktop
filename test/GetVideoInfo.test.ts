@@ -1,19 +1,30 @@
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
-import {describe, it} from "node:test";
+import {describe, it, mock} from "node:test";
 import assert from "node:assert";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
+import InvokeGateway from "@/app/gateway/InvokeGateway";
+import { InvokeArgs } from "@tauri-apps/api/tauri";
 
-// test('Getting video info', () => {
-//     const videoURL = 'https://www.youtube.com/watch?v=1_G60OdEzXs';
-//     const result = new GetVideoInfo().execute(videoURL);
-//     expect(result).toBe('info');
-// });
+class MockGateway implements InvokeGateway {
+
+    invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
+        return Promise.resolve({
+            title: '',
+            author: ''
+        } as T);
+    }
+
+}
 
 describe('GetVideoInfo', () => {
-    it('Should return an empty array', async () => {
-        const get = new GetVideoInfo()
-        const response = await get.execute(new VideoInfoRequest(''))
+    it('Should return a valid object', async () => {
+        const videoURL = 'https://www.youtube.com/watch?v=1_G60OdEzXs';
+        const getVideoInfo = new GetVideoInfo(new MockGateway())
+        const response = await getVideoInfo.execute(new VideoInfoRequest(videoURL))
         console.log(response)
-        assert.deepEqual('1', '1');
+        assert.deepEqual(response, {
+            title: '',
+            author: ''
+        });
     })
 });

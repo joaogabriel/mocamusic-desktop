@@ -16,6 +16,7 @@ import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
 import ClipboardInspect from "@/components/internal/clipboard-inspect";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
+import TauriInvokeGateway from "@/app/gateway/TauriInvokeGateway";
 
 const youtubeRegex = new RegExp('^(https?://)?((www.)?youtube.com/watch\\?v=.+|youtu.be/.+)');
 
@@ -70,7 +71,7 @@ export default function Page() {
         console.log('onSubmit')
         console.log(data)
         setVideoInfoLoading(true);
-        const getVideoInfo = new GetVideoInfo();
+        const getVideoInfo = new GetVideoInfo(new TauriInvokeGateway());
         const response = await getVideoInfo.execute(new VideoInfoRequest(data.url));
         const suggestedMusicName = sanitizeMusicName(response.title);
         console.log(suggestedMusicName)
