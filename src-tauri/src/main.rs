@@ -4,10 +4,17 @@
 use rusty_ytdl::{FFmpegArgs, Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use serde::Serialize;
 use std::fmt;
-use std::fs::File;
+// use std::fs::File;
 use std::io::prelude::*;
-use std::path::PathBuf;
-use std::process::Command;
+// use std::path::PathBuf;
+// use std::process::Command;
+
+use std::fs::{File, self};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use tauri::command;
+use tempfile::tempdir;
 
 #[derive(Serialize)]
 struct VideoInfo {
@@ -122,41 +129,73 @@ async fn fetch_video_info(video_url: String) -> Result<VideoInfo, VideoInfoError
 
 #[tauri::command]
 async fn download_audio_as_mp3(video_id: String, output_path: String, file_name: String) {
+    // Criar diretório de saída caso não exista
     let output_dir = PathBuf::from(output_path.clone());
-    let path = output_dir.join(file_name);
-    match File::create(&path) {
-        Ok(mut file) => {
-            let video_options = VideoOptions {
-                quality: VideoQuality::Highest,
-                filter: VideoSearchOptions::VideoAudio,
-                ..Default::default()
-            };
-            let video = Video::new_with_options(video_id, video_options).unwrap();
-            let stream = video
-                .stream_with_ffmpeg(Some(FFmpegArgs {
-                    format: Some("mp3".to_string()),
-                    audio_filter: None,
-                    video_filter: None,
-                }))
-                .await
-                .unwrap();
-
-            while let Some(chunk) = stream.chunk().await.unwrap() {
-                if let Err(e) = file.write_all(&chunk) {
-                    println!("Failed to write to file: {}", e);
-                    break;
-                }
-            }
-
-            // sync_all after the loop
-            if let Err(sync_err) = file.sync_all() {
-                println!("Failed to write data to file: {}", sync_err);
-            }
-        }
-        Err(e) => {
-            println!("Failed to create file: {}", e);
+    if !output_dir.exists() {
+        if let Err(e) = fs::create_dir_all(&output_dir) {
+            println!("Falha ao criar diretório de saída: {}", e);
+            return;
         }
     }
+
+    let path = output_dir.join(&file_name);
+
+    // Criar diretório temporário para download
+    let temp_dir = match tempdir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            println!("Falha ao criar diretório temporário: {}", e);
+            return;
+        }
+    };
+
+    let temp_file_path = temp_dir.path().join("audio.mp3");
+
+    // Construir URL completa do YouTube
+    let youtube_url = format!("https://www.youtube.com/watch?v={}", video_id);
+
+    // Configurar o comando youtube-dl
+    let mut cmd = Command::new("yt-dlp")
+        .args(&[
+            "-x",                       // Extrair áudio
+            "--audio-format", "mp3",    // Formato de saída MP3
+            "--audio-quality", "0",     // Melhor qualidade
+            "-o", temp_file_path.to_str().unwrap(),  // Caminho de saída temporário
+            &youtube_url                // URL do vídeo
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+
+    // Executar o comando e aguardar a conclusão
+    match cmd {
+        Ok(mut child) => {
+            match child.wait() {
+                Ok(status) => {
+                    if status.success() {
+                        // Se o download foi bem-sucedido, mover o arquivo para o destino final
+                        if let Err(e) = fs::copy(&temp_file_path, &path) {
+                            println!("Falha ao copiar arquivo para destino final: {}", e);
+                            return;
+                        }
+
+                        // Sync explícito não é necessário ao usar fs::copy
+                        println!("Download completo: {}", path.display());
+                    } else {
+                        println!("youtube-dl falhou com código de saída: {:?}", status.code());
+                    }
+                },
+                Err(e) => {
+                    println!("Falha ao aguardar processo youtube-dl: {}", e);
+                }
+            }
+        },
+        Err(e) => {
+            println!("Falha ao iniciar youtube-dl: {}", e);
+        }
+    }
+
+    // O diretório temporário será automaticamente removido quando sair do escopo
 }
 
 #[tauri::command]

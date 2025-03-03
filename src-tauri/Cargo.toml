@@ -18,9 +18,11 @@ tauri-build = { version = "2", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "2", features = [] }
-rusty_ytdl = { version = "0.7.3", features = ["ffmpeg"] }
+rusty_ytdl = { version = "0.7.4", features = ["ffmpeg"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2"
+tokio = { version = "1", features = ["full"] }
+tempfile = "3.6"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
