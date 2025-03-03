@@ -15,18 +15,6 @@ export const metadata: Metadata = {
   description: "As app for personal use",
 };
 
-// export default function RootLayout({
-//   children,
-// }: Readonly<{
-//   children: React.ReactNode;
-// }>) {
-//   return (
-//     <html lang="en">
-//       <body className={inter.className}>{children}</body>
-//     </html>
-//   );
-// }
-
 type LayoutProps = {
   children: ReactNode;
 };
