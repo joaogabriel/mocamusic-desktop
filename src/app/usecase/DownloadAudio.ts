@@ -1,6 +1,6 @@
 "use client"
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudioResponse from "@/app/domain/model/DownloadAudioResponse";
 
