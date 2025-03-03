@@ -15,6 +15,7 @@ import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
+import { invoke } from '@tauri-apps/api/core';
 
 const youtubeRegex = new RegExp('^(https?://)?((www.)?youtube.com/watch\\?v=.+|youtu.be/.+)');
 
@@ -134,8 +135,7 @@ export default function Page() {
     }
 
     async function openFileInNativeFileExplorer(path: string): Promise<void> {
-        const tauri = (await import('@tauri-apps/api')).tauri
-        await tauri.invoke('show_in_folder', {path});
+        await invoke('show_in_folder', {path});
     }
 
     async function getDownloadDir() {
