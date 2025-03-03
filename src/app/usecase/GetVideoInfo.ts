@@ -1,6 +1,6 @@
 "use client"
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import VideoInfoResponse from "@/app/domain/model/VideoInfoResponse";
 

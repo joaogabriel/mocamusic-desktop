@@ -1,7 +1,7 @@
 "use client"
 
 import React, {useEffect, useState} from "react";
-import {readText} from "@tauri-apps/api/clipboard";
+import {readText} from "@tauri-apps/plugin-clipboard-manager";
 import {
     AlertDialog,
     AlertDialogAction,
