@@ -9,6 +9,7 @@ import {Toaster} from "@/components/ui/sonner"
 import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
+
 import React, {useState} from "react";
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
@@ -16,26 +17,11 @@ import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import { invoke } from '@tauri-apps/api/core';
-
-const youtubeRegex = new RegExp('^(https?://)?((www.)?youtube.com/watch\\?v=.+|youtu.be/.+)');
-
-const downloadVideoSchema = z.object({
-    url: z.string()
-        .min(3, {
-            message: "A URL muito pequena. Verifique se o senhor copiou corretamente."
-        })
-        .url({
-            message: 'A URL não é válida. Verifique se o senhor copiou corretamente.'
-        })
-        .regex(youtubeRegex, 'A URL não é do YouTube. Verifique se o senhor copiou corretamente.'),
-    musicName: z.string()
-});
-
-type DownloadVideoSchema = z.infer<typeof downloadVideoSchema>;
+import { downloadVideoSchema, type DownloadVideoSchema } from "@/lib/schema";
+import { sanitizeMusicName } from "@/lib/sanitize";
 
 export default function Page() {
 
-    const defaultMusicExtension = '.mp3';
     const [downloadAvailable, setDownloadAvailable] = useState(false);
     const [videoInfoLoading, setVideoInfoLoading] = useState(false);
     const [downloading, setDownloading] = useState(false);
@@ -110,16 +96,6 @@ export default function Page() {
         openToast(downloadDirPath + '/' + musicName);
         console.log('toast called');
         resetFormState();
-    }
-
-    function sanitizeMusicName(musicName: string) {
-        if (!musicName) return '';
-        const stringWithoutSpecialChars = musicName.replace(/[^a-zA-ZÀ-ÿ ]/g, '');
-        return stringWithoutSpecialChars.split(' ')
-            .filter(str => str.length > 0)
-            .map(str => str.trim().charAt(0).toUpperCase() + str.trim().slice(1).toLowerCase())
-            .join(' ')
-            .concat(defaultMusicExtension);
     }
 
     // function handleMusicName(event: React.ChangeEvent<HTMLInputElement>) {

@@ -7,6 +7,7 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint src",
+    "test": "jest",
     "test-release": "echo 1"
   },
   "dependencies": {
@@ -37,14 +38,19 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
     "@tauri-apps/cli": "^2.10.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.0.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8",
     "tailwindcss": "^4.2.1",
+    "ts-jest": "^29.4.6",
     "typescript": "^5.9.3"
   },
   "pnpm": {
