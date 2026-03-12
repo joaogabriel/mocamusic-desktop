@@ -26,7 +26,7 @@ jest.mock('@/app/usecase/DownloadAudio');
 
 // ── UI library mocks ─────────────────────────────────────────────────────────
 jest.mock('sonner', () => ({
-    toast: { success: jest.fn() },
+    toast: { success: jest.fn(), error: jest.fn() },
     Toaster: () => null,
 }));
 
@@ -164,6 +164,98 @@ describe('Page – video analysis flow', () => {
 
         await waitFor(() => {
             expect(screen.getByPlaceholderText('Cole o link do YouTube aqui')).toBeDisabled();
+        });
+    });
+});
+
+describe('Page – error handling', () => {
+    const VALID_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    const { toast } = jest.requireMock('sonner') as { toast: { success: jest.Mock; error: jest.Mock } };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('shows error toast when GetVideoInfo throws', async () => {
+        MockedGetVideoInfo.prototype.execute = jest.fn().mockRejectedValue(
+            new Error('Vídeo não encontrado. Verifique se o link está correto.')
+        );
+
+        renderPage();
+
+        fireEvent.change(screen.getByPlaceholderText('Cole o link do YouTube aqui'), {
+            target: { value: VALID_URL },
+        });
+        fireEvent.click(screen.getByText('Analisar vídeo'));
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                'Vídeo não encontrado. Verifique se o link está correto.'
+            );
+        });
+    });
+
+    it('does not show music name field when GetVideoInfo throws', async () => {
+        MockedGetVideoInfo.prototype.execute = jest.fn().mockRejectedValue(
+            new Error('Erro de rede. Verifique sua conexão e tente novamente.')
+        );
+
+        renderPage();
+
+        fireEvent.change(screen.getByPlaceholderText('Cole o link do YouTube aqui'), {
+            target: { value: VALID_URL },
+        });
+        fireEvent.click(screen.getByText('Analisar vídeo'));
+
+        await waitFor(() => {
+            expect(screen.queryByPlaceholderText('Musica.mp3')).not.toBeInTheDocument();
+        });
+    });
+
+    it('shows error toast when DownloadAudio throws', async () => {
+        MockedGetVideoInfo.prototype.execute = jest.fn().mockResolvedValue(
+            new VideoInfoResponse('Never Gonna Give You Up', 'Rick Astley')
+        );
+        MockedDownloadAudio.prototype.execute = jest.fn().mockRejectedValue(
+            new Error('Falha ao baixar o vídeo. Ele pode ser privado, restrito ou indisponível.')
+        );
+
+        renderPage();
+
+        fireEvent.change(screen.getByPlaceholderText('Cole o link do YouTube aqui'), {
+            target: { value: VALID_URL },
+        });
+        fireEvent.click(screen.getByText('Analisar vídeo'));
+
+        await waitFor(() => expect(screen.getByText('Baixar música')).toBeInTheDocument());
+
+        fireEvent.click(screen.getByText('Baixar música'));
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                'Falha ao baixar o vídeo. Ele pode ser privado, restrito ou indisponível.'
+            );
+        });
+    });
+
+    it('shows validation error when music name is too short', async () => {
+        MockedGetVideoInfo.prototype.execute = jest.fn().mockResolvedValue(
+            new VideoInfoResponse('', 'Artist')
+        );
+
+        renderPage();
+
+        fireEvent.change(screen.getByPlaceholderText('Cole o link do YouTube aqui'), {
+            target: { value: VALID_URL },
+        });
+        fireEvent.click(screen.getByText('Analisar vídeo'));
+
+        await waitFor(() => expect(screen.getByPlaceholderText('Musica.mp3')).toBeInTheDocument());
+
+        fireEvent.click(screen.getByText('Baixar música'));
+
+        await waitFor(() => {
+            expect(screen.getByText('O nome da música deve ter pelo menos 5 caracteres.')).toBeInTheDocument();
         });
     });
 });
