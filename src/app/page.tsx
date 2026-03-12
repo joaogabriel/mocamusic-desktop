@@ -56,15 +56,21 @@ export default function Page() {
         console.log('onSubmit')
         console.log(data)
         setVideoInfoLoading(true);
-        const getVideoInfo = new GetVideoInfo();
-        const response = await getVideoInfo.execute(new VideoInfoRequest(data.url));
-        const suggestedMusicName = sanitizeMusicName(response.title);
-        console.log(suggestedMusicName)
-        setMusicName(suggestedMusicName);
-        setValue('musicName', suggestedMusicName);
-        setVideoUrl(data.url);
-        setVideoInfoLoading(false);
-        setDownloadAvailable(true);
+        try {
+            const getVideoInfo = new GetVideoInfo();
+            const response = await getVideoInfo.execute(new VideoInfoRequest(data.url));
+            const suggestedMusicName = sanitizeMusicName(response.title);
+            console.log(suggestedMusicName)
+            setMusicName(suggestedMusicName);
+            setValue('musicName', suggestedMusicName);
+            setVideoUrl(data.url);
+            setDownloadAvailable(true);
+        } catch (error) {
+            console.error('Falha ao analisar vídeo:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao obter informações do vídeo.');
+        } finally {
+            setVideoInfoLoading(false);
+        }
     }
 
     function openToast(musicPath: string) {
@@ -78,23 +84,27 @@ export default function Page() {
     }
 
     async function download() {
-        setDownloading(true);
         if (!musicName || musicName.length < 5) {
             form.setError('musicName', {
-                message: 'erro manual'
+                message: 'O nome da música deve ter pelo menos 5 caracteres.'
             });
             return;
         }
-        const downloadDirPath = await getDownloadDir();
-        const downloadAudio = new DownloadAudio();
-        const downloadAudioRequest = new DownloadAudioRequest(videoUrl, downloadDirPath, musicName);
-        const response = await downloadAudio.execute(downloadAudioRequest);
-        console.log('response', response)
-        setDownloading(false);
-        console.log('calling toast');
-        openToast(downloadDirPath + '/' + musicName);
-        console.log('toast called');
-        resetFormState();
+        setDownloading(true);
+        try {
+            const downloadDirPath = await getDownloadDir();
+            const downloadAudio = new DownloadAudio();
+            const downloadAudioRequest = new DownloadAudioRequest(videoUrl, downloadDirPath, musicName);
+            const response = await downloadAudio.execute(downloadAudioRequest);
+            console.log('response', response)
+            openToast(downloadDirPath + '/' + musicName);
+            resetFormState();
+        } catch (error) {
+            console.error('Falha ao baixar o áudio:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao baixar o vídeo.');
+        } finally {
+            setDownloading(false);
+        }
     }
 
     function resetFormState() {

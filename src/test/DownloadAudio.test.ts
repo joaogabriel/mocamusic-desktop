@@ -70,4 +70,18 @@ describe('DownloadAudio', () => {
 
         expect(mockInvoke).toHaveBeenCalledTimes(1);
     });
+
+    it('throws with user-friendly message when invoke rejects', async () => {
+        mockInvoke.mockRejectedValue('yt-dlp falhou: video is private');
+
+        const request = new DownloadAudioRequest(
+            'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            '/Downloads',
+            'song.mp3'
+        );
+
+        await expect(new DownloadAudio().execute(request)).rejects.toThrow(
+            'Falha ao baixar o vídeo. Ele pode ser privado, restrito ou indisponível.'
+        );
+    });
 });
