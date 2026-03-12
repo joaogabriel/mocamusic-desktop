@@ -85,7 +85,6 @@ export default function Page() {
             });
             return;
         }
-        // const outputPath = '/Users/joaogabriel/env-dev/temp/mp3-downloads';
         const downloadDirPath = await getDownloadDir();
         const downloadAudio = new DownloadAudio();
         const downloadAudioRequest = new DownloadAudioRequest(videoUrl, downloadDirPath, musicName);
@@ -97,11 +96,6 @@ export default function Page() {
         console.log('toast called');
         resetFormState();
     }
-
-    // function handleMusicName(event: React.ChangeEvent<HTMLInputElement>) {
-    //     console.log(typeof event, event.constructor.name, event.target.value)
-    //     setMusicName(event.target.value);
-    // }
 
     function resetFormState() {
         reset();
@@ -117,8 +111,6 @@ export default function Page() {
     async function getDownloadDir() {
         return (await import('@tauri-apps/api/path')).downloadDir();
     }
-
-    // const onError = (errors, e) => console.log(errors, e);
 
     return (
         <div className="w-full">

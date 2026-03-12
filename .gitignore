@@ -1,10 +1,18 @@
-# jetbrains
+# JetBrains
 .idea
 
-# dependencies
-
+# Dependencies
 node_modules
 
-# next.js
+# Next.js
 /.next/
 /out/
+
+# IA
+.claude
+templates/*
+tasks/*
+prompt*.txt
+
+# Tests
+coverage/*

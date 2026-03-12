@@ -8,9 +8,7 @@ export default class DownloadAudio {
 
     public async execute(request: DownloadAudioRequest): Promise<DownloadAudioResponse> {
         const { videoUrl, outputPath, fileName } = request;
-        console.log('videoURL', videoUrl)
         const videoId = this.getYouTubeVideoId(videoUrl);
-        console.log('videoId', videoId);
         const info = await invoke('download_audio_as_mp3', { videoId, outputPath, fileName });
         console.log(info);
         return new DownloadAudioResponse(videoUrl);
