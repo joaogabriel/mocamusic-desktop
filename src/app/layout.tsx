@@ -7,6 +7,8 @@ import {Menu, Music} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Sheet, SheetContent, SheetTrigger} from "@/components/ui/sheet";
 import DisplayVersion from "@/components/internal/display-version";
+import ObservabilityProvider from "@/components/internal/observability-provider";
+import ErrorBoundary from "@/components/internal/error-boundary";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -74,7 +76,11 @@ const Layout = ({ children }: LayoutProps) => {
           </Sheet>
         </header>
         <main>
-          {children}
+          <ObservabilityProvider>
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </ObservabilityProvider>
         </main>
       </div>
       </body>
