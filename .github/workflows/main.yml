@@ -6,7 +6,7 @@ on:
       - develop
 
 jobs:
-  build:
+  build-windows-release:
     permissions:
       contents: write
 
@@ -40,11 +40,12 @@ jobs:
 
       # Build + Release
       - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__
-          releaseName: "Tauri App v__VERSION__"
+          releaseName: "Moca Music v__VERSION__"
           releaseDraft: false
           prerelease: false
+          includeUpdaterJson: false
