@@ -9,7 +9,7 @@ use std::fmt;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use tauri::command;
+use tokio::process::Command as AsyncCommand;
 
 #[derive(Serialize)]
 struct VideoInfo {
@@ -108,17 +108,18 @@ async fn download_audio_as_mp3(video_id: String, output_path: String, file_name:
         let err = DownloadError("Invalid output path encoding".to_string());
         observability::capture_error(&err);
         err
-    })?;
+    })?.to_string();
 
-    let output = Command::new("yt-dlp")
+    let output = AsyncCommand::new("yt-dlp")
         .args([
             "-x",
             "--audio-format", "mp3",
             "--audio-quality", "0",
-            "-o", output_path_str,
+            "-o", &output_path_str,
             &youtube_url,
         ])
         .output()
+        .await
         .map_err(|e| {
             let err = DownloadError(format!("Falha ao iniciar yt-dlp: {}", e));
             observability::capture_error(&err);
@@ -128,8 +129,7 @@ async fn download_audio_as_mp3(video_id: String, output_path: String, file_name:
     if output.status.success() {
         Ok(format!("Download completo: {}", output_file.display()))
     } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let err = DownloadError(format!("yt-dlp falhou: {}", stderr));
+        let err = DownloadError("yt-dlp falhou ao processar o vídeo".to_string());
         observability::capture_error(&err);
         Err(err)
     }
