@@ -16,3 +16,6 @@ prompt*.txt
 
 # Tests
 coverage/*
+
+# Environment
+.env.local

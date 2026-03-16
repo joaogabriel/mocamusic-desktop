@@ -247,6 +247,16 @@ export default function Page() {
                         Começar de novo
                     </button>
                 </div>
+
+                {/* TODO: remover após validar Sentry */}
+                <div className="mt-3 text-center">
+                    <button
+                        onClick={() => invoke('trigger_test_error')}
+                        className="text-xs text-[#aaaaaa] underline-offset-4 transition-colors hover:text-[#606060] hover:underline"
+                    >
+                        [debug] trigger Sentry error
+                    </button>
+                </div>
             </div>
         </div>
     )

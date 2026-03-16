@@ -3,12 +3,12 @@
   "version": "0.1.2",
   "private": true,
   "scripts": {
+    "local": "export $(grep -v '^#' .env.local | xargs) && pnpm tauri dev",
     "dev": "next dev --turbopack",
     "build": "cross-env NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint src",
-    "test": "jest",
-    "test-release": "echo 1"
+    "test": "jest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

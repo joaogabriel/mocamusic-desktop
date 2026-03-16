@@ -267,6 +267,23 @@ mod tests {
     }
 }
 
+#[derive(Debug)]
+struct TestError(String);
+
+impl fmt::Display for TestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for TestError {}
+
+#[tauri::command]
+fn trigger_test_error() {
+    let err = TestError("Sentry test error from Rust backend".to_string());
+    observability::capture_error(&err);
+}
+
 #[tauri::command]
 fn show_in_folder(path: String) {
     #[cfg(target_os = "windows")]
@@ -292,7 +309,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             fetch_video_info,
             download_audio_as_mp3,
-            show_in_folder
+            show_in_folder,
+            trigger_test_error
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
