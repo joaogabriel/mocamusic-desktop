@@ -3,17 +3,20 @@
 import * as Sentry from '@sentry/browser';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { ErrorEvent } from '@sentry/browser';
 
 export function captureError(error: Error): void {
   if (!Sentry.isInitialized()) return;
   Sentry.captureException(error);
 }
 
-function beforeSend(event: ErrorEvent): ErrorEvent | null {
-  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return null;
-  if (!event.request) return event;
-  return { ...event, request: { ...event.request, url: '[Redacted]' } };
+export function logInfo(message: string, attributes?: Record<string, string>): void {
+  if (!Sentry.isInitialized()) return;
+  Sentry.logger.info(message, attributes);
+}
+
+export function countMetric(name: string, value = 1): void {
+  if (!Sentry.isInitialized()) return;
+  Sentry.metrics.count(name, value);
 }
 
 export default function ObservabilityProvider({ children }: { children: ReactNode }) {
@@ -24,8 +27,12 @@ export default function ObservabilityProvider({ children }: { children: ReactNod
       dsn,
       release: process.env.NEXT_PUBLIC_APP_VERSION,
       environment: process.env.NODE_ENV,
-      beforeSend,
+      integrations: [
+        Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
+      ],
+      enableLogs: true,
     });
+    Sentry.metrics.count('app_opened');
   }, []);
   return <>{children}</>;
 }

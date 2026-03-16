@@ -9,7 +9,7 @@ import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
 
-import React, {useState} from "react";
+import {useState} from "react";
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
@@ -18,6 +18,8 @@ import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/
 import { invoke } from '@tauri-apps/api/core';
 import { downloadVideoSchema, type DownloadVideoSchema } from "@/lib/schema";
 import { sanitizeMusicName } from "@/lib/sanitize";
+
+import { captureError, logInfo, countMetric } from "@/components/internal/observability-provider";
 
 export default function Page() {
 
@@ -35,6 +37,7 @@ export default function Page() {
         },
     });
 
+
     const {setValue, reset} = form;
 
     const updateVideoUrl = async (url: string) => {
@@ -44,7 +47,10 @@ export default function Page() {
     }
 
     async function onSubmit(data: DownloadVideoSchema) {
-        console.log('onSubmit', data)
+        logInfo('onSubmit', {
+            version: process.env.NEXT_PUBLIC_APP_VERSION ?? 'unknown',
+            ...data
+        });
         setVideoInfoLoading(true);
         try {
             const getVideoInfo = new GetVideoInfo();
@@ -56,6 +62,7 @@ export default function Page() {
             setDownloadAvailable(true);
         } catch (error) {
             console.error('Falha ao analisar vídeo:', error);
+            if (error instanceof Error) captureError(error);
             toast.error(error instanceof Error ? error.message : 'Erro ao obter informações do vídeo.');
         } finally {
             setVideoInfoLoading(false);
@@ -79,6 +86,7 @@ export default function Page() {
             });
             return;
         }
+        countMetric('download_started');
         setDownloading(true);
         try {
             const downloadDirPath = await getDownloadDir();
@@ -86,10 +94,12 @@ export default function Page() {
             const downloadAudioRequest = new DownloadAudioRequest(videoUrl, downloadDirPath, musicName);
             const response = await downloadAudio.execute(downloadAudioRequest);
             console.log('response', response)
+            countMetric('download_completed');
             openToast(downloadDirPath + '/' + musicName);
             resetFormState();
         } catch (error) {
             console.error('Falha ao baixar o áudio:', error);
+            if (error instanceof Error) captureError(error);
             toast.error(error instanceof Error ? error.message : 'Erro ao baixar o vídeo.');
         } finally {
             setDownloading(false);
@@ -101,6 +111,7 @@ export default function Page() {
         setDownloadAvailable(false);
         setVideoUrl('');
         setMusicName('');
+        countMetric('reset_form');
     }
 
     async function openFileInNativeFileExplorer(path: string): Promise<void> {
