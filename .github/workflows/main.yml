@@ -1,77 +1,49 @@
-name: 'publish'
+name: Build and Release
 
-#on:
-#  push:
-#    branches:
-#      - main
+on:
+  push:
+    branches:
+      - develop
 
 jobs:
-  build-windows:
+  build:
+    permissions:
+      contents: write
+
     runs-on: windows-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v2
+      # Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
+          cache: pnpm
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
         with:
-          toolchain: stable
-          override: true
+          version: latest
 
-      - name: Install dependencies
-        run: |
-          npm install -g pnpm
-          pnpm install
+      - name: Install frontend dependencies
+        run: pnpm install
 
+      # Rust cache
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Build + Release
       - name: Build Tauri App
-        run: |
-          npx tauri build --features embedded-server
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: mocamusic-desktop-windows
-          path: |
-            src-tauri/target/release/bundle/msi/*.msi
-
-  create-release:
-    needs: build-windows
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Download Artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: mocamusic-desktop-windows
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: >
-            Changes in this Release
-            - First release
-          draft: false
+          tagName: v__VERSION__
+          releaseName: "Tauri App v__VERSION__"
+          releaseDraft: false
           prerelease: false
-
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./mocamusic-desktop-windows/*.msi
-          asset_name: mocamusic-desktop-0.1.0.msi
-          asset_content_type: application/octet-stream
