@@ -96,27 +96,35 @@ pnpm tauri icon ./app-icon.png
 
 ---
 
-## 🔄 Ciclo de desenvolvimento (Gitflow)
+## 🔄 Ciclo de desenvolvimento
 
-```bash
-# 1. Iniciar uma nova feature
-git flow feature start [feature-name]
+### Desenvolvimento
 
-# 2. Finalizar a feature (merge em develop)
-git flow feature finish [feature-name]
+1. Criar uma branch a partir de `develop`
+   - Features: `git checkout -b feature/[nome]`
+   - Bugfixes: `git checkout -b hotfix/[nome]`
 
-# 3. Iniciar uma release
-git flow release start [release-name]
+2. Trabalhar na branch e fazer commits normalmente
 
-# 4. Versionar o pacote (patch | minor | major)
-npm version patch   # ou minor / major
+3. Abrir um PR para `develop` no GitHub para code review
 
-# 5. Finalizar a release (merge em main e develop)
-git flow release finish [release-name]
+4. Após aprovação, fazer merge do PR
 
-# 6. Publicar as tags
-git push origin --tags
-```
+### Release (quando estiver pronto para publicar)
+
+1. Garantir que `develop` está atualizado: `git pull origin develop`
+
+2. Fazer bump da versão (atualiza `package.json`, `Cargo.toml` e `tauri.conf.json`):
+   ```bash
+   pnpm run release patch   # ou minor / major
+   ```
+
+3. Abrir um PR de `develop` → `main` (ou fazer push direto se preferir)
+
+4. Após merge em `main`, o CI/CD (GitHub Actions) criará automaticamente:
+   - Tag `vX.Y.Z`
+   - GitHub Release
+   - Build do executável para Windows
 
 ---
 
