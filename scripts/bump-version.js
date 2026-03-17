@@ -57,16 +57,30 @@ tauriConf.version = newVersion;
 fs.writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n');
 console.log('✓ Updated src-tauri/tauri.conf.json');
 
-// Git commit
+// Generate release notes from commits
+console.log('\n📝 Generating release notes...');
 try {
-  execSync('git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json', {
+  require('./generate-changelog.js');
+} catch (error) {
+  console.warn('⚠️  Could not generate release notes:', error.message);
+}
+
+// Git commit and tag
+try {
+  execSync('git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json RELEASE_NOTES.md', {
     stdio: 'inherit'
   });
   execSync(`git commit -m "chore: bump version to ${newVersion}"`, {
     stdio: 'inherit'
   });
+  execSync(`git tag v${newVersion}`, {
+    stdio: 'inherit'
+  });
   console.log(`\n✅ Version bumped to ${newVersion}`);
+  console.log(`\n📌 Tag created: v${newVersion}`);
+  console.log(`\n📤 To push the tag to remote: git push origin v${newVersion}`);
+  console.log(`\n💡 Or push everything: git push origin develop --tags`);
 } catch (error) {
-  console.error('❌ Git commit failed:', error.message);
+  console.error('❌ Git commit or tag failed:', error.message);
   process.exit(1);
 }

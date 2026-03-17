@@ -104,7 +104,11 @@ pnpm tauri icon ./app-icon.png
    - Features: `git checkout -b feature/[nome]`
    - Bugfixes: `git checkout -b hotfix/[nome]`
 
-2. Trabalhar na branch e fazer commits normalmente
+2. Fazer commits seguindo o padrão [Conventional Commits](/.claude/rules/conventional-commits.md):
+   - `feat:` para novas funcionalidades
+   - `fix:` para correções
+   - `perf:` para performance
+   - `chore:`, `refactor:`, `docs:` para outros tipos
 
 3. Abrir um PR para `develop` no GitHub para code review
 
@@ -114,17 +118,20 @@ pnpm tauri icon ./app-icon.png
 
 1. Garantir que `develop` está atualizado: `git pull origin develop`
 
-2. Fazer bump da versão (atualiza `package.json`, `Cargo.toml` e `tauri.conf.json`):
+2. Fazer bump da versão (atualiza `package.json`, `Cargo.toml` e `tauri.conf.json`, gera `RELEASE_NOTES.md`):
    ```bash
    pnpm run release patch   # ou minor / major
+   git push origin develop  # empurra o commit de versão
+   git push origin --tags   # empurra a tag vX.Y.Z
    ```
 
 3. Abrir um PR de `develop` → `main` (ou fazer push direto se preferir)
 
-4. Após merge em `main`, o CI/CD (GitHub Actions) criará automaticamente:
-   - Tag `vX.Y.Z`
-   - GitHub Release
+4. Após merge em `main`, o CI/CD (GitHub Actions) detectará a tag e criará automaticamente:
+   - GitHub Release com release notes geradas do `RELEASE_NOTES.md`
    - Build do executável para Windows
+
+> **Nota:** As release notes são geradas automaticamente a partir dos commits desde a última tag, categorizando por tipo (feat, fix, perf, etc.)
 
 ---
 

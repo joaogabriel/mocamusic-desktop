@@ -38,6 +38,15 @@ jobs:
         with:
           workspaces: src-tauri
 
+      # Read release notes
+      - name: Read release notes
+        id: release_notes
+        run: |
+          $notes = Get-Content RELEASE_NOTES.md -Raw
+          $notes = $notes -replace "`n", "%0A" -replace "`r", "%0D"
+          echo "body=$notes" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
       # Build + Release
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
@@ -48,6 +57,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Moca Music v__VERSION__"
+          releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: false
