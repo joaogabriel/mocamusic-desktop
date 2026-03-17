@@ -1,7 +1,7 @@
 "use client"
 
 import React, {useEffect, useState} from "react";
-import {readText} from "@tauri-apps/api/clipboard";
+import {readText} from "@tauri-apps/plugin-clipboard-manager";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,9 +28,11 @@ export default function ClipboardInspect(props: ClipboardInspectProps) {
     }, []);
 
     async function setupAppWindow() {
-        await (await import('@tauri-apps/api/window')).appWindow.listen(tauriForegroundEvent, () => {
-            onWindowFocused();
-        });
+        // TODO temp remove, will be added in next version
+        // https://tauri.app/plugin/clipboard/
+        // await (await import('@tauri-apps/api/window')).appWindow.listen(tauriForegroundEvent, () => {
+        //     onWindowFocused();
+        // });
         // unlisten();
     }
 

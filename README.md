@@ -1,59 +1,155 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🎵 Moca Music Desktop
 
-## Getting Started
+> Aplicativo desktop para baixar músicas do YouTube em formato MP3, construído com Tauri + Next.js.
 
-First, run the development server:
+---
+
+## 🖥️ Sobre o projeto
+
+**Moca Music Desktop** é um app nativo que permite colar um link do YouTube, visualizar as informações do vídeo e baixar o áudio em MP3 diretamente para a pasta de downloads. A interface é simples, minimalista e feita para funcionar no macOS (e Windows).
+
+---
+
+## 🛠️ Stack
+
+| Camada | Tecnologia |
+|---|---|
+| 🖼️ Frontend | Next.js 16 (App Router, static export) |
+| ⚛️ UI | React 19 + Tailwind CSS v4 + Radix UI |
+| 🦀 Backend | Tauri v2 + Rust |
+| 📥 Download | `yt-dlp` (CLI externo) |
+| 🔍 Metadados | `rusty_ytdl` |
+| ✅ Validação | Zod v4 + React Hook Form |
+| 🧪 Testes | Jest + Testing Library |
+| 📦 Pacotes | pnpm |
+
+---
+
+## ⚙️ Pré-requisitos
+
+- [Node.js](https://nodejs.org/) `v24` (use `nvm use`)
+- [pnpm](https://pnpm.io/)
+- [Rust](https://www.rust-lang.org/) `1.85+`
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) instalado e disponível no PATH
+- [ffmpeg](https://ffmpeg.org/) instalado e disponível no PATH
+
+---
+
+## 🚀 Desenvolvimento
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Instalar dependências
+pnpm install
+
+# Rodar o app Tauri em modo desenvolvimento
+pnpm tauri dev
+
+# Rodar apenas o servidor Next.js (sem Tauri)
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🏗️ Build
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+```bash
+# Build do app Tauri para produção
+pnpm tauri build
 
-## Learn More
+# Build apenas do Next.js (export estático)
+pnpm build
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🧪 Testes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```bash
+# Rodar testes do frontend (Jest)
+pnpm test
 
-## Deploy on Vercel
+# Rodar testes do backend (Rust)
+cargo test --manifest-path src-tauri/Cargo.toml
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## 🔍 Lint
 
-# Icon
+```bash
+pnpm lint
+```
 
-Website: https://www.flaticon.com/
+---
 
-Command: pnpm tauri icon
+## 🎨 Ícone do app
 
-Filename: "./app-icon.png"
+O ícone é gerado a partir de uma imagem PNG usando o comando:
 
-Doc: https://tauri.app/v1/guides/features/icons/
+```bash
+pnpm tauri icon ./app-icon.png
+```
 
-Original images: icons/original
+- Fonte: [flaticon.com](https://www.flaticon.com/)
+- Imagens originais: `icons/original/`
+- Docs: [Tauri Icons](https://tauri.app/v1/guides/features/icons/)
 
-# Life Cycle Development (in progress)
+---
 
-Steps:
+## 🔄 Ciclo de desenvolvimento
 
-1. ``git flow feature start [feature-name]``
-2. ``git flow feature finish [feature-name]``
-3. ``git flow release start [release-name]``
-4. ``npm patch/minor/release``
-5. ``git flow release finish [release-name]``
-6. ``git push origin --tags``
+### Desenvolvimento
+
+1. Criar uma branch a partir de `develop`
+   - Features: `git checkout -b feature/[nome]`
+   - Bugfixes: `git checkout -b hotfix/[nome]`
+
+2. Fazer commits seguindo o padrão [Conventional Commits](/.claude/rules/conventional-commits.md):
+   - `feat:` para novas funcionalidades
+   - `fix:` para correções
+   - `perf:` para performance
+   - `chore:`, `refactor:`, `docs:` para outros tipos
+
+3. Abrir um PR para `develop` no GitHub para code review
+
+4. Após aprovação, fazer merge do PR
+
+### Release (quando estiver pronto para publicar)
+
+1. Garantir que `develop` está atualizado: `git pull origin develop`
+
+2. Fazer bump da versão (atualiza `package.json`, `Cargo.toml` e `tauri.conf.json`, gera `RELEASE_NOTES.md`):
+   ```bash
+   pnpm run release patch   # ou minor / major
+   git push origin develop  # empurra o commit de versão
+   git push origin --tags   # empurra a tag vX.Y.Z
+   ```
+
+3. Abrir um PR de `develop` → `main` (ou fazer push direto se preferir)
+
+4. Após merge em `main`, o CI/CD (GitHub Actions) detectará a tag e criará automaticamente:
+   - GitHub Release com release notes geradas do `RELEASE_NOTES.md`
+   - Build do executável para Windows
+
+> **Nota:** As release notes são geradas automaticamente a partir dos commits desde a última tag, categorizando por tipo (feat, fix, perf, etc.)
+
+---
+
+## 📁 Estrutura principal
+
+```
+mocamusic-desktop/
+├── src/                    # Frontend Next.js
+│   ├── app/                # App Router (page, usecases, domain)
+│   ├── components/         # Componentes UI (Radix + shadcn)
+│   └── lib/                # Utilitários (schema Zod, sanitize)
+├── src-tauri/              # Backend Rust + config Tauri
+│   └── src/main.rs         # Comandos Tauri (fetch_video_info, download_audio_as_mp3)
+└── icons/                  # Ícones do app
+```
+
+---
+
+## 📄 Licença
+
+Projeto privado. Todos os direitos reservados.

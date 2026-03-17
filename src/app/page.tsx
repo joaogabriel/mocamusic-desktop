@@ -1,40 +1,28 @@
 "use client"
 
-import Link from "next/link";
 import {toast} from "sonner";
-import {Loader2} from "lucide-react";
+import {Loader2, Music2, Link2, Download} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {Toaster} from "@/components/ui/sonner"
 import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
-import React, {useState} from "react";
+
+import {useState} from "react";
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
+import { invoke } from '@tauri-apps/api/core';
+import { downloadVideoSchema, type DownloadVideoSchema } from "@/lib/schema";
+import { sanitizeMusicName } from "@/lib/sanitize";
 
-const youtubeRegex = new RegExp('^(https?://)?((www.)?youtube.com/watch\\?v=.+|youtu.be/.+)');
-
-const downloadVideoSchema = z.object({
-    url: z.string()
-        .min(3, {
-            message: "A URL muito pequena. Verifique se o senhor copiou corretamente."
-        })
-        .url({
-            message: 'A URL não é válida. Verifique se o senhor copiou corretamente.'
-        })
-        .regex(youtubeRegex, 'A URL não é do YouTube. Verifique se o senhor copiou corretamente.'),
-    musicName: z.string()
-});
-
-type DownloadVideoSchema = z.infer<typeof downloadVideoSchema>;
+import { captureError, logInfo, countMetric } from "@/components/internal/observability-provider";
 
 export default function Page() {
 
-    const defaultMusicExtension = '.mp3';
     const [downloadAvailable, setDownloadAvailable] = useState(false);
     const [videoInfoLoading, setVideoInfoLoading] = useState(false);
     const [downloading, setDownloading] = useState(false);
@@ -45,186 +33,229 @@ export default function Page() {
         resolver: zodResolver(downloadVideoSchema),
         defaultValues: {
             url: '',
-            // url: 'https://www.google.com/',
-            // url: 'https://www.youtube.com/watch?v=nM699RCA2AM',
-            // url: 'https://www.youtube.com/watch?v=rTJSWmgbVwA',
-            // url: 'https://www.youtube.com/watch?v=6RTg7ovfaLk',
             musicName: ''
         },
     });
 
+
     const {setValue, reset} = form;
 
     const updateVideoUrl = async (url: string) => {
-        console.log('updateVideoUrl', url)
         setVideoUrl(url);
         setValue('url', url);
-        await onSubmit({
-            url: url,
-            musicName: ''
-        });
+        await onSubmit({ url, musicName: '' });
     }
 
     async function onSubmit(data: DownloadVideoSchema) {
-        console.log('onSubmit')
-        console.log(data)
+        logInfo('onSubmit', {
+            version: process.env.NEXT_PUBLIC_APP_VERSION ?? 'unknown',
+            ...data
+        });
         setVideoInfoLoading(true);
-        const getVideoInfo = new GetVideoInfo();
-        const response = await getVideoInfo.execute(new VideoInfoRequest(data.url));
-        const suggestedMusicName = sanitizeMusicName(response.title);
-        console.log(suggestedMusicName)
-        setMusicName(suggestedMusicName);
-        setValue('musicName', suggestedMusicName);
-        setVideoUrl(data.url);
-        setVideoInfoLoading(false);
-        setDownloadAvailable(true);
+        try {
+            const getVideoInfo = new GetVideoInfo();
+            const response = await getVideoInfo.execute(new VideoInfoRequest(data.url));
+            const suggestedMusicName = sanitizeMusicName(response.title);
+            setMusicName(suggestedMusicName);
+            setValue('musicName', suggestedMusicName);
+            setVideoUrl(data.url);
+            setDownloadAvailable(true);
+        } catch (error) {
+            console.error('Falha ao analisar vídeo:', error);
+            if (error instanceof Error) captureError(error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao obter informações do vídeo.');
+        } finally {
+            setVideoInfoLoading(false);
+        }
     }
 
     function openToast(musicPath: string) {
-        toast.success("O download foi finalizado", {
+        toast.success("Download concluído!", {
             action: {
                 label: "Abrir pasta",
                 onClick: () => openFileInNativeFileExplorer(musicPath),
             },
-            description: `A música ${musicName} foi salva em ${musicPath}`,
+            description: `${musicName} foi salvo com sucesso.`,
         });
     }
 
     async function download() {
-        setDownloading(true);
         if (!musicName || musicName.length < 5) {
             form.setError('musicName', {
-                message: 'erro manual'
+                message: 'O nome da música deve ter pelo menos 5 caracteres.'
             });
             return;
         }
-        // const outputPath = '/Users/joaogabriel/env-dev/temp/mp3-downloads';
-        const downloadDirPath = await getDownloadDir();
-        const downloadAudio = new DownloadAudio();
-        const downloadAudioRequest = new DownloadAudioRequest(videoUrl, downloadDirPath, musicName);
-        const response = await downloadAudio.execute(downloadAudioRequest);
-        console.log('response', response)
-        setDownloading(false);
-        console.log('calling toast');
-        openToast(downloadDirPath + '/' + musicName);
-        console.log('toast called');
-        resetFormState();
+        countMetric('download_started');
+        setDownloading(true);
+        try {
+            const downloadDirPath = await getDownloadDir();
+            const downloadAudio = new DownloadAudio();
+            const downloadAudioRequest = new DownloadAudioRequest(videoUrl, downloadDirPath, musicName);
+            const response = await downloadAudio.execute(downloadAudioRequest);
+            console.log('response', response)
+            countMetric('download_completed');
+            openToast(downloadDirPath + '/' + musicName);
+            resetFormState();
+        } catch (error) {
+            console.error('Falha ao baixar o áudio:', error);
+            if (error instanceof Error) captureError(error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao baixar o vídeo.');
+        } finally {
+            setDownloading(false);
+        }
     }
-
-    function sanitizeMusicName(musicName: string) {
-        if (!musicName) return '';
-        const stringWithoutSpecialChars = musicName.replace(/[^a-zA-ZÀ-ÿ ]/g, '');
-        return stringWithoutSpecialChars.split(' ')
-            .filter(str => str.length > 0)
-            .map(str => str.trim().charAt(0).toUpperCase() + str.trim().slice(1).toLowerCase())
-            .join(' ')
-            .concat(defaultMusicExtension);
-    }
-
-    // function handleMusicName(event: React.ChangeEvent<HTMLInputElement>) {
-    //     console.log(typeof event, event.constructor.name, event.target.value)
-    //     setMusicName(event.target.value);
-    // }
 
     function resetFormState() {
         reset();
         setDownloadAvailable(false);
         setVideoUrl('');
         setMusicName('');
+        countMetric('reset_form');
     }
 
     async function openFileInNativeFileExplorer(path: string): Promise<void> {
-        const tauri = (await import('@tauri-apps/api')).tauri
-        await tauri.invoke('show_in_folder', {path});
+        await invoke('show_in_folder', {path});
     }
 
     async function getDownloadDir() {
         return (await import('@tauri-apps/api/path')).downloadDir();
     }
 
-    // const onError = (errors, e) => console.log(errors, e);
-
     return (
-        <div className="w-full">
-            <Toaster/>
-            {/*<ClipboardInspect updateVideoUrl={updateVideoUrl}></ClipboardInspect>*/}
-            <div className="flex items-center justify-center py-12">
-                <div className="mx-auto grid w-[500px] gap-6">
+        <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-[#f9f9f9]">
+            <Toaster />
+
+            <div className="w-full max-w-2xl px-8 py-8">
+
+                {/* Hero icon + heading */}
+                <div className="mb-10 text-center">
+                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-sm bg-[#ff0000]">
+                        <Music2 className="h-8 w-8 text-white" />
+                    </div>
+                    <h2 className="text-3xl font-semibold text-[#0f0f0f]">Baixar música</h2>
+                    <p className="mt-2 text-base text-[#606060]">Cole o link do YouTube e baixe em MP3</p>
+                </div>
+
+                {/* Step indicators */}
+                <div className="mb-6 flex items-center gap-3 px-1">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${!downloadAvailable ? 'bg-[#ff0000] text-white' : 'bg-[#e5e5e5] text-[#606060]'}`}>1</div>
+                    <div className="h-px flex-1 bg-[#e5e5e5]" />
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${downloadAvailable ? 'bg-[#ff0000] text-white' : 'bg-[#e5e5e5] text-[#606060]'}`}>2</div>
+                </div>
+
+                {/* Form card */}
+                <div className="rounded-xl border border-[#e5e5e5] bg-white p-8 shadow-sm">
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)}>
-                            <div className="grid gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="url"
-                                    render={({field}) => (
-                                        <FormItem>
-                                            <FormLabel>Link</FormLabel>
-                                            <FormControl>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+
+                            <FormField
+                                control={form.control}
+                                name="url"
+                                render={({field}) => (
+                                    <FormItem>
+                                        <FormLabel className="text-sm font-medium text-[#0f0f0f]">Link do YouTube</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Link2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#606060]" />
                                                 <Input
-                                                    id="link"
+                                                    id="url"
                                                     type="url"
-                                                    placeholder="Cole o link do YouTube aqui"
+                                                    placeholder="https://youtube.com/watch?v=..."
+                                                    className="h-12 pl-11 text-sm border-[#e5e5e5] bg-white focus-visible:ring-[#ff0000]"
                                                     disabled={downloadAvailable}
                                                     required
                                                     {...field}
                                                 />
-                                            </FormControl>
-                                            <FormMessage/>
-                                        </FormItem>
-                                    )}
-                                />
-                                {videoInfoLoading &&
-                                    <Button disabled className="flex justify-center items-center">
-                                        <Loader2 className="h-4 animate-spin"/>
-                                        Analisando vídeo...
-                                    </Button>}
-                                {!videoInfoLoading && !downloadAvailable &&
-                                    <div className="flex justify-center items-center">
-                                        <Button type="submit" className="w-full">
-                                            Analisar vídeo
-                                        </Button>
-                                    </div>
-                                }
-                                {downloadAvailable && (
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {!downloadAvailable && (
+                                <Button
+                                    type="submit"
+                                    className="h-12 w-full bg-[#ff0000] text-sm font-semibold hover:bg-[#cc0000] text-white transition-colors duration-150 border-0 rounded-sm"
+                                    disabled={videoInfoLoading}
+                                >
+                                    {videoInfoLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Analisando vídeo...
+                                        </>
+                                    ) : 'Analisar vídeo'}
+                                </Button>
+                            )}
+
+                            {downloadAvailable && (
+                                <>
                                     <FormField
                                         control={form.control}
                                         name="musicName"
                                         render={({field}) => (
                                             <FormItem>
-                                                <FormLabel>Nome da música</FormLabel>
+                                                <FormLabel className="text-sm font-medium text-[#0f0f0f]">Nome da música</FormLabel>
                                                 <FormControl>
-                                                    <Input
-                                                        id="link"
-                                                        type="text"
-                                                        placeholder="Musica.mp3"
-                                                        required
-                                                        {...field}
-                                                    />
+                                                    <div className="relative">
+                                                        <Music2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#606060]" />
+                                                        <Input
+                                                            id="musicName"
+                                                            type="text"
+                                                            placeholder="Nome da música"
+                                                            className="h-12 pl-11 text-sm border-[#e5e5e5] bg-white focus-visible:ring-[#ff0000]"
+                                                            required
+                                                            {...field}
+                                                        />
+                                                    </div>
                                                 </FormControl>
-                                                <FormMessage/>
+                                                <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                )}
-                                {downloadAvailable && downloading &&
-                                    <Button disabled className="flex justify-center items-center">
-                                        <Loader2 className="h-4 w-4 animate-spin"/>
-                                        Baixando música...
+
+                                    <Button
+                                        type="button"
+                                        className="h-12 w-full bg-[#ff0000] text-sm font-semibold hover:bg-[#cc0000] text-white transition-colors duration-150 border-0 rounded-sm"
+                                        onClick={download}
+                                        disabled={downloading}
+                                    >
+                                        {downloading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Baixando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Baixar música
+                                            </>
+                                        )}
                                     </Button>
-                                }
-                                {downloadAvailable && !downloading &&
-                                    <Button type="button" className="w-full" onClick={() => download()}>
-                                        Baixar música
-                                    </Button>
-                                }
-                                <div className="text-center text-sm">
-                                    <Link href="#" className="underline" onClick={() => resetFormState()}>
-                                        Começar de novo
-                                    </Link>
-                                </div>
-                            </div>
+                                </>
+                            )}
                         </form>
                     </Form>
+                </div>
+
+                <div className="mt-5 text-center">
+                    <button
+                        onClick={resetFormState}
+                        className="text-xs text-[#606060] underline-offset-4 transition-colors hover:text-[#0f0f0f] hover:underline"
+                    >
+                        Começar de novo
+                    </button>
+                </div>
+
+                {/* TODO: remover após validar Sentry */}
+                <div className="mt-3 text-center">
+                    <button
+                        onClick={() => invoke('trigger_test_error')}
+                        className="text-xs text-[#aaaaaa] underline-offset-4 transition-colors hover:text-[#606060] hover:underline"
+                    >
+                        [debug] trigger Sentry error
+                    </button>
                 </div>
             </div>
         </div>
