@@ -1,6 +1,6 @@
 {
   "name": "mocamusic-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "local": "export $(grep -v '^#' .env.local | xargs) && pnpm tauri dev",
