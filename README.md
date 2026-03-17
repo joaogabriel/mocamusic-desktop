@@ -135,6 +135,15 @@ pnpm tauri icon ./app-icon.png
 
 ---
 
+## Commit prefixes:
+feat: → ✨ Novas funcionalidades
+fix: → 🐛 Correções
+perf: → ⚡ Performance
+refactor: → ♻️ Refatoração
+docs: → 📝 Documentação
+chore: → 🔧 Melhorias internas
+Sem prefixo → 📌 Outros
+
 ## 📁 Estrutura principal
 
 ```
