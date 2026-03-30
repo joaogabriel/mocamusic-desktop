@@ -1,5 +1,8 @@
 ## What's Changed
 
+### ✨ Novas funcionalidades
+- feat: add bundle for ytdl
+
 ### 🐛 Correções
-- fix: pnpm-lock dependencies
+- fix: remove button for Sentry test
 
