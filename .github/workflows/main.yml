@@ -47,6 +47,26 @@ jobs:
           echo "body=$notes" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
+      # Download yt-dlp and ffmpeg sidecars
+      - name: Download sidecar binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "src-tauri/binaries" | Out-Null
+
+          Invoke-WebRequest `
+            -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" `
+            -OutFile "src-tauri/binaries/yt-dlp-x86_64-pc-windows-msvc.exe"
+
+          $ffmpegZip = "ffmpeg-master-latest-win64-gpl.zip"
+          Invoke-WebRequest `
+            -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/$ffmpegZip" `
+            -OutFile $ffmpegZip
+          Expand-Archive -Path $ffmpegZip -DestinationPath "ffmpeg-extract" -Force
+          $ffmpegExe = Get-ChildItem -Path "ffmpeg-extract" -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+          Copy-Item -Path $ffmpegExe.FullName -Destination "src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe"
+          Remove-Item -Path $ffmpegZip -Force
+          Remove-Item -Path "ffmpeg-extract" -Recurse -Force
+
       # Build + Release
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0

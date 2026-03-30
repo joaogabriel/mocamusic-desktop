@@ -9,7 +9,7 @@ use std::fmt;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use tokio::process::Command as AsyncCommand;
+use tauri_plugin_shell::ShellExt;
 
 #[derive(Serialize)]
 struct VideoInfo {
@@ -92,8 +92,25 @@ fn ensure_output_dir(output_dir: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+fn resolve_sidecar_dir(app: &tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    let exe_path = app
+        .path()
+        .resolve(".", tauri::path::BaseDirectory::Executable)
+        .map_err(|e| format!("Cannot resolve executable directory: {}", e))?;
+    exe_path
+        .to_str()
+        .ok_or_else(|| "Invalid executable directory encoding".to_string())
+        .map(|s| s.to_string())
+}
+
 #[tauri::command]
-async fn download_audio_as_mp3(video_id: String, output_path: String, file_name: String) -> Result<String, DownloadError> {
+async fn download_audio_as_mp3(
+    app: tauri::AppHandle,
+    video_id: String,
+    output_path: String,
+    file_name: String,
+) -> Result<String, DownloadError> {
     let output_dir = PathBuf::from(&output_path);
     ensure_output_dir(&output_dir).map_err(|e| {
         let err = DownloadError(e);
@@ -110,26 +127,41 @@ async fn download_audio_as_mp3(video_id: String, output_path: String, file_name:
         err
     })?.to_string();
 
-    let output = AsyncCommand::new("yt-dlp")
+    let ffmpeg_dir = resolve_sidecar_dir(&app).map_err(|e| {
+        let err = DownloadError(format!("Cannot resolve sidecar directory: {}", e));
+        observability::capture_error(&err);
+        err
+    })?;
+
+    let output = app
+        .shell()
+        .sidecar("yt-dlp")
+        .map_err(|e| {
+            let err = DownloadError(format!("Failed to locate yt-dlp sidecar: {}", e));
+            observability::capture_error(&err);
+            err
+        })?
         .args([
             "-x",
             "--audio-format", "mp3",
             "--audio-quality", "0",
+            "--ffmpeg-location", &ffmpeg_dir,
             "-o", &output_path_str,
             &youtube_url,
         ])
         .output()
         .await
         .map_err(|e| {
-            let err = DownloadError(format!("Falha ao iniciar yt-dlp: {}", e));
+            let err = DownloadError(format!("Failed to execute yt-dlp: {}", e));
             observability::capture_error(&err);
             err
         })?;
 
     if output.status.success() {
-        Ok(format!("Download completo: {}", output_file.display()))
+        Ok(format!("Download complete: {}", output_file.display()))
     } else {
-        let err = DownloadError("yt-dlp falhou ao processar o vídeo".to_string());
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let err = DownloadError(format!("yt-dlp failed: {}", stderr));
         observability::capture_error(&err);
         Err(err)
     }
@@ -304,6 +336,7 @@ fn main() {
     let _sentry = observability::init();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
