@@ -19,3 +19,8 @@ coverage/*
 
 # Environment
 .env.local
+
+# Sidecar binaries (downloaded during CI build)
+src-tauri/binaries/*.exe
+src-tauri/binaries/yt-dlp-*
+src-tauri/binaries/ffmpeg-*
