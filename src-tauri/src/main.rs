@@ -92,6 +92,27 @@ fn ensure_output_dir(output_dir: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+fn get_log_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    use tauri::Manager;
+    app.path().app_log_dir().ok()
+}
+
+fn append_to_log(app: &tauri::AppHandle, message: &str) {
+    use std::io::Write;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let Some(log_dir) = get_log_dir(app) else { return };
+    if fs::create_dir_all(&log_dir).is_err() { return }
+    let log_path = log_dir.join("download.log");
+    let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&log_path) else { return };
+    let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let _ = writeln!(file, "[{}] {}", ts, message);
+}
+
+#[tauri::command]
+fn get_log_path(app: tauri::AppHandle) -> Option<String> {
+    get_log_dir(&app).map(|dir| dir.join("download.log").to_string_lossy().into_owned())
+}
+
 fn resolve_sidecar_dir(app: &tauri::AppHandle) -> Result<String, String> {
     use tauri::Manager;
     let exe_path = app
@@ -114,6 +135,7 @@ async fn download_audio_as_mp3(
     let output_dir = PathBuf::from(&output_path);
     ensure_output_dir(&output_dir).map_err(|e| {
         let err = DownloadError(e);
+        append_to_log(&app, &err.to_string());
         observability::capture_error(&err);
         err
     })?;
@@ -123,12 +145,14 @@ async fn download_audio_as_mp3(
 
     let output_path_str = output_file.to_str().ok_or_else(|| {
         let err = DownloadError("Invalid output path encoding".to_string());
+        append_to_log(&app, &err.to_string());
         observability::capture_error(&err);
         err
     })?.to_string();
 
     let ffmpeg_dir = resolve_sidecar_dir(&app).map_err(|e| {
         let err = DownloadError(format!("Cannot resolve sidecar directory: {}", e));
+        append_to_log(&app, &err.to_string());
         observability::capture_error(&err);
         err
     })?;
@@ -138,6 +162,7 @@ async fn download_audio_as_mp3(
         .sidecar("yt-dlp")
         .map_err(|e| {
             let err = DownloadError(format!("Failed to locate yt-dlp sidecar: {}", e));
+            append_to_log(&app, &err.to_string());
             observability::capture_error(&err);
             err
         })?
@@ -153,6 +178,7 @@ async fn download_audio_as_mp3(
         .await
         .map_err(|e| {
             let err = DownloadError(format!("Failed to execute yt-dlp: {}", e));
+            append_to_log(&app, &err.to_string());
             observability::capture_error(&err);
             err
         })?;
@@ -162,6 +188,7 @@ async fn download_audio_as_mp3(
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let err = DownloadError(format!("yt-dlp failed: {}", stderr));
+        append_to_log(&app, &err.to_string());
         observability::capture_error(&err);
         Err(err)
     }
@@ -343,7 +370,8 @@ fn main() {
             fetch_video_info,
             download_audio_as_mp3,
             show_in_folder,
-            trigger_test_error
+            trigger_test_error,
+            get_log_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

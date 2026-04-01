@@ -1,8 +1,11 @@
 ## What's Changed
 
 ### ✨ Novas funcionalidades
-- feat: add bundle for ytdl
+- error messages improvements
 
 ### 🐛 Correções
-- fix: remove button for Sentry test
+- changelog messsages
+
+### 📌 Outros
+- Merge pull request #13 from joaogabriel/feature/bundle-ytdl
 

@@ -45,7 +45,7 @@
   },
   "productName": "Moca Music",
   "mainBinaryName": "Moca Music",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "identifier": "com.mocamusic",
   "plugins": {},
   "app": {
