@@ -43,8 +43,10 @@ jobs:
         id: release_notes
         run: |
           $notes = Get-Content RELEASE_NOTES.md -Raw
-          $notes = $notes -replace "`n", "%0A" -replace "`r", "%0D"
-          echo "body=$notes" >> $env:GITHUB_OUTPUT
+          $delimiter = "EOF_$(New-Guid)"
+          "body<<$delimiter" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $notes | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $delimiter | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
         shell: pwsh
 
       # Download yt-dlp and ffmpeg sidecars

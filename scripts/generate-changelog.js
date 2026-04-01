@@ -95,7 +95,8 @@ function generateMarkdown(categorized) {
     markdown += `### ${emoji} ${category}\n`;
 
     categorized[category].forEach(commit => {
-      markdown += `- ${commit}\n`;
+      const message = commit.replace(/^\w+:\s*/, '');
+      markdown += `- ${message}\n`;
     });
 
     markdown += '\n';
