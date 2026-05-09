@@ -14,8 +14,9 @@ export default class DownloadAudio {
             console.log(info);
             return new DownloadAudioResponse(videoUrl);
         } catch (error) {
-            console.error('Erro ao baixar o áudio:', error);
-            throw new Error('Falha ao baixar o vídeo. Ele pode ser privado, restrito ou indisponível.');
+            const rawMessage = typeof error === 'string' ? error : (error instanceof Error ? error.message : String(error));
+            console.error('Erro ao baixar o áudio:', rawMessage);
+            throw new Error(rawMessage);
         }
     }
 

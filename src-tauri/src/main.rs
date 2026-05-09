@@ -212,6 +212,7 @@ async fn download_audio_as_mp3(
     } else {
         append_to_log(&app, &format!("yt-dlp failed. stderr: {} | stdout: {}", stderr, stdout));
         let err = DownloadError(format!("yt-dlp failed: {}", stderr));
+        append_to_log(&app, &err.to_string());
         observability::capture_error(&err);
         Err(err)
     }
