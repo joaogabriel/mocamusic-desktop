@@ -92,37 +92,52 @@ fn ensure_output_dir(output_dir: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-fn get_log_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+fn get_log_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
     use tauri::Manager;
-    app.path().app_log_dir().ok()
+    app.path()
+        .app_log_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("mocamusic"))
+}
+
+fn get_log_file_path(app: &tauri::AppHandle) -> std::path::PathBuf {
+    let log_dir = get_log_dir(app);
+    if fs::create_dir_all(&log_dir).is_ok() {
+        log_dir.join("download.log")
+    } else {
+        std::env::temp_dir().join("mocamusic-download.log")
+    }
 }
 
 fn append_to_log(app: &tauri::AppHandle, message: &str) {
     use std::io::Write;
     use std::time::{SystemTime, UNIX_EPOCH};
-    let Some(log_dir) = get_log_dir(app) else { return };
-    if fs::create_dir_all(&log_dir).is_err() { return }
-    let log_path = log_dir.join("download.log");
-    let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&log_path) else { return };
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let log_path = get_log_file_path(app);
+    let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&log_path) else {
+        return;
+    };
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let _ = writeln!(file, "[{}] {}", ts, message);
 }
 
 #[tauri::command]
-fn get_log_path(app: tauri::AppHandle) -> Option<String> {
-    get_log_dir(&app).map(|dir| dir.join("download.log").to_string_lossy().into_owned())
+fn get_log_path(app: tauri::AppHandle) -> String {
+    get_log_file_path(&app).to_string_lossy().into_owned()
 }
 
-fn resolve_sidecar_dir(app: &tauri::AppHandle) -> Result<String, String> {
-    use tauri::Manager;
-    let exe_path = app
-        .path()
-        .resolve(".", tauri::path::BaseDirectory::Executable)
+fn resolve_sidecar_dir() -> Result<String, String> {
+    let exe_path = std::env::current_exe()
         .map_err(|e| format!("Cannot resolve executable directory: {}", e))?;
     exe_path
-        .to_str()
-        .ok_or_else(|| "Invalid executable directory encoding".to_string())
-        .map(|s| s.to_string())
+        .parent()
+        .ok_or_else(|| "Cannot get executable directory".to_string())
+        .and_then(|p| {
+            p.to_str()
+                .ok_or_else(|| "Invalid executable directory encoding".to_string())
+                .map(|s| s.to_string())
+        })
 }
 
 #[tauri::command]
@@ -150,12 +165,17 @@ async fn download_audio_as_mp3(
         err
     })?.to_string();
 
-    let ffmpeg_dir = resolve_sidecar_dir(&app).map_err(|e| {
+    let ffmpeg_dir = resolve_sidecar_dir().map_err(|e| {
         let err = DownloadError(format!("Cannot resolve sidecar directory: {}", e));
         append_to_log(&app, &err.to_string());
         observability::capture_error(&err);
         err
     })?;
+
+    append_to_log(&app, &format!(
+        "download started: video_id={} output_path={} file_name={} ffmpeg_dir={}",
+        video_id, output_path, file_name, ffmpeg_dir
+    ));
 
     let output = app
         .shell()
@@ -183,10 +203,14 @@ async fn download_audio_as_mp3(
             err
         })?;
 
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
     if output.status.success() {
+        append_to_log(&app, &format!("download succeeded. stdout: {}", stdout));
         Ok(format!("Download complete: {}", output_file.display()))
     } else {
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        append_to_log(&app, &format!("yt-dlp failed. stderr: {} | stdout: {}", stderr, stdout));
         let err = DownloadError(format!("yt-dlp failed: {}", stderr));
         append_to_log(&app, &err.to_string());
         observability::capture_error(&err);

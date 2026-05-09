@@ -102,11 +102,11 @@ export default function Page() {
             if (error instanceof Error) captureError(error);
             const logPath = await getLogPath();
             toast.error(error instanceof Error ? error.message : 'Erro ao baixar o vídeo.', {
-                description: logPath ? `Log salvo em: ${logPath}` : undefined,
-                action: logPath ? {
+                description: `Log salvo em: ${logPath}`,
+                action: {
                     label: 'Abrir pasta do log',
                     onClick: () => openFileInNativeFileExplorer(logPath),
-                } : undefined,
+                },
             });
         } finally {
             setDownloading(false);
@@ -125,11 +125,11 @@ export default function Page() {
         await invoke('show_in_folder', {path});
     }
 
-    async function getLogPath(): Promise<string | null> {
+    async function getLogPath(): Promise<string> {
         try {
-            return await invoke<string | null>('get_log_path');
+            return await invoke<string>('get_log_path');
         } catch {
-            return null;
+            return '';
         }
     }
 
