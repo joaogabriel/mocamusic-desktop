@@ -100,7 +100,14 @@ export default function Page() {
         } catch (error) {
             console.error('Falha ao baixar o áudio:', error);
             if (error instanceof Error) captureError(error);
-            toast.error(error instanceof Error ? error.message : 'Erro ao baixar o vídeo.');
+            const logPath = await getLogPath();
+            toast.error(error instanceof Error ? error.message : 'Erro ao baixar o vídeo.', {
+                description: `Log salvo em: ${logPath}`,
+                action: {
+                    label: 'Abrir pasta do log',
+                    onClick: () => openFileInNativeFileExplorer(logPath),
+                },
+            });
         } finally {
             setDownloading(false);
         }
@@ -116,6 +123,14 @@ export default function Page() {
 
     async function openFileInNativeFileExplorer(path: string): Promise<void> {
         await invoke('show_in_folder', {path});
+    }
+
+    async function getLogPath(): Promise<string> {
+        try {
+            return await invoke<string>('get_log_path');
+        } catch {
+            return '';
+        }
     }
 
     async function getDownloadDir() {
