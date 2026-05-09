@@ -5,6 +5,7 @@
 - fix: error logs dir
 
 ### 📌 Outros
+- Merge pull request #16 from joaogabriel/windows-log-test
 - Update main.yml
 - Update build-test.yml
 - Update Cargo.lock
