@@ -127,16 +127,17 @@ fn get_log_path(app: tauri::AppHandle) -> String {
     get_log_file_path(&app).to_string_lossy().into_owned()
 }
 
-fn resolve_sidecar_dir(app: &tauri::AppHandle) -> Result<String, String> {
-    use tauri::Manager;
-    let exe_path = app
-        .path()
-        .resolve(".", tauri::path::BaseDirectory::Executable)
+fn resolve_sidecar_dir() -> Result<String, String> {
+    let exe_path = std::env::current_exe()
         .map_err(|e| format!("Cannot resolve executable directory: {}", e))?;
     exe_path
-        .to_str()
-        .ok_or_else(|| "Invalid executable directory encoding".to_string())
-        .map(|s| s.to_string())
+        .parent()
+        .ok_or_else(|| "Cannot get executable directory".to_string())
+        .and_then(|p| {
+            p.to_str()
+                .ok_or_else(|| "Invalid executable directory encoding".to_string())
+                .map(|s| s.to_string())
+        })
 }
 
 #[tauri::command]
@@ -164,7 +165,7 @@ async fn download_audio_as_mp3(
         err
     })?.to_string();
 
-    let ffmpeg_dir = resolve_sidecar_dir(&app).map_err(|e| {
+    let ffmpeg_dir = resolve_sidecar_dir().map_err(|e| {
         let err = DownloadError(format!("Cannot resolve sidecar directory: {}", e));
         append_to_log(&app, &err.to_string());
         observability::capture_error(&err);
