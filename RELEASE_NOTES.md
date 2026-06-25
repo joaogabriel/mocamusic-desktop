@@ -1,15 +1,21 @@
 ## What's Changed
 
+### ✨ Novas funcionalidades
+- add deeplink support
+- error messages improvements
+
 ### 🐛 Correções
-- fix: pnpm build
-- fix: error logs dir
+- add deno runtime
+- changelog messsages
 
 ### 📌 Outros
-- Merge pull request #16 from joaogabriel/windows-log-test
+- Merge pull request #20 from joaogabriel/feature/bookmarklet-deeplink
+- Merge pull request #18 from joaogabriel/develop
 - Update main.yml
-- Update build-test.yml
-- Update Cargo.lock
-- Add temp build
-- Add more log messages
-- Merge pull request #13 from joaogabriel/feature/bundle-ytdl
+- Merge pull request #17 from joaogabriel/develop
+- Merge branch 'main' into develop
+- Merge pull request #15 from joaogabriel/feature/error-messages-improvements
+- Merge pull request #14 from joaogabriel/develop
+- Merge pull request #12 from joaogabriel/develop
+- Merge pull request #11 from joaogabriel/develop
 
