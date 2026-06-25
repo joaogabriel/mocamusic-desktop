@@ -168,6 +168,10 @@ fn build_output_file(output_path: &str, file_name: &str) -> PathBuf {
     PathBuf::from(output_path).join(file_name)
 }
 
+fn resolve_deno_path(sidecar_dir: &str) -> String {
+    format!("{}/deno{}", sidecar_dir, std::env::consts::EXE_SUFFIX)
+}
+
 fn ensure_output_dir(output_dir: &PathBuf) -> Result<(), String> {
     if !output_dir.exists() {
         fs::create_dir_all(output_dir)
@@ -255,10 +259,26 @@ async fn download_audio_as_mp3(
         err
     })?;
 
+    let deno_path = resolve_deno_path(&ffmpeg_dir);
+    let deno_found = PathBuf::from(&deno_path).exists();
+
     append_to_log(&app, &format!(
-        "download started: video_id={} output_path={} file_name={} ffmpeg_dir={}",
-        video_id, output_path, file_name, ffmpeg_dir
+        "download started: video_id={} output_path={} file_name={} ffmpeg_dir={} deno_path={} deno_found={}",
+        video_id, output_path, file_name, ffmpeg_dir, deno_path, deno_found
     ));
+
+    let mut args = vec![
+        "-x".to_string(),
+        "--audio-format".to_string(), "mp3".to_string(),
+        "--audio-quality".to_string(), "0".to_string(),
+        "--ffmpeg-location".to_string(), ffmpeg_dir.clone(),
+        "-o".to_string(), output_path_str.clone(),
+    ];
+    if deno_found {
+        args.push("--js-runtimes".to_string());
+        args.push(format!("deno:{}", deno_path));
+    }
+    args.push(youtube_url.clone());
 
     let output = app
         .shell()
@@ -269,14 +289,7 @@ async fn download_audio_as_mp3(
             observability::capture_error(&err);
             err
         })?
-        .args([
-            "-x",
-            "--audio-format", "mp3",
-            "--audio-quality", "0",
-            "--ffmpeg-location", &ffmpeg_dir,
-            "-o", &output_path_str,
-            &youtube_url,
-        ])
+        .args(args)
         .output()
         .await
         .map_err(|e| {
@@ -394,6 +407,14 @@ mod tests {
     fn output_file_handles_trailing_slash() {
         let result = build_output_file("/tmp/music/", "track.mp3");
         assert_eq!(result, PathBuf::from("/tmp/music/track.mp3"));
+    }
+
+    // --- resolve_deno_path ---
+
+    #[test]
+    fn deno_path_joins_dir_and_executable_name() {
+        let result = resolve_deno_path("/tmp/sidecars");
+        assert_eq!(result, format!("/tmp/sidecars/deno{}", std::env::consts::EXE_SUFFIX));
     }
 
     // --- ensure_output_dir ---
