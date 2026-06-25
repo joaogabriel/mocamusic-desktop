@@ -9,6 +9,9 @@ use std::fmt;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Mutex;
+use tauri::{Emitter, Manager};
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_shell::ShellExt;
 
 #[derive(Serialize)]
@@ -48,6 +51,87 @@ impl fmt::Display for DownloadError {
 }
 
 impl std::error::Error for DownloadError {}
+
+const DEEP_LINK_SCHEME_PREFIX: &str = "mocamusic://";
+const DEEP_LINK_ACTION: &str = "download";
+const DEEP_LINK_URL_PARAM: &str = "url";
+
+fn decode_percent_encoded(input: &str) -> Option<String> {
+    let bytes = input.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'%' => {
+                if i + 3 > bytes.len() {
+                    return None;
+                }
+                let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok()?;
+                decoded.push(u8::from_str_radix(hex, 16).ok()?);
+                i += 3;
+            }
+            b'+' => {
+                decoded.push(b' ');
+                i += 1;
+            }
+            byte => {
+                decoded.push(byte);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(decoded).ok()
+}
+
+fn parse_deep_link_payload(uri: &str) -> Option<String> {
+    let rest = uri.strip_prefix(DEEP_LINK_SCHEME_PREFIX)?;
+    let (action, query) = rest.split_once('?').unwrap_or((rest, ""));
+    if action != DEEP_LINK_ACTION {
+        return None;
+    }
+
+    query.split('&').find_map(|pair| {
+        let (key, value) = pair.split_once('=')?;
+        if key != DEEP_LINK_URL_PARAM || value.is_empty() {
+            return None;
+        }
+        decode_percent_encoded(value)
+    })
+}
+
+const DEEP_LINK_DOWNLOAD_EVENT: &str = "deep-link://download";
+const MAIN_WINDOW_LABEL: &str = "main";
+
+struct DeepLinkState(Mutex<Option<String>>);
+
+fn focus_main_window(app: &tauri::AppHandle) {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        return;
+    };
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+}
+
+fn store_pending_deep_link(app: &tauri::AppHandle, payload: String) {
+    let Some(state) = app.try_state::<DeepLinkState>() else {
+        return;
+    };
+    *state.0.lock().unwrap() = Some(payload);
+}
+
+fn parse_deep_link_or_log(app: &tauri::AppHandle, raw_url: &str) -> Option<String> {
+    let payload = parse_deep_link_payload(raw_url);
+    if payload.is_none() {
+        append_to_log(app, &format!("[debug] deep link parse failed: {}", raw_url));
+    }
+    payload
+}
+
+#[tauri::command]
+fn take_pending_deep_link(state: tauri::State<DeepLinkState>) -> Option<String> {
+    state.0.lock().unwrap().take()
+}
 
 #[tauri::command]
 async fn fetch_video_info(video_url: String) -> Result<VideoInfo, VideoInfoError> {
@@ -93,7 +177,6 @@ fn ensure_output_dir(output_dir: &PathBuf) -> Result<(), String> {
 }
 
 fn get_log_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
-    use tauri::Manager;
     app.path()
         .app_log_dir()
         .unwrap_or_else(|_| std::env::temp_dir().join("mocamusic"))
@@ -348,6 +431,90 @@ mod tests {
         assert_eq!(json["author"], "Artist");
         assert_eq!(json["message"], "");
     }
+
+    // --- parse_deep_link_payload ---
+
+    #[test]
+    fn parse_deep_link_payload_decodes_encoded_url() {
+        let payload =
+            parse_deep_link_payload("mocamusic://download?url=https%3A%2F%2Fyoutu.be%2FdQw4w9WgXcQ");
+        assert_eq!(payload, Some("https://youtu.be/dQw4w9WgXcQ".to_string()));
+    }
+
+    #[test]
+    fn parse_deep_link_payload_accepts_non_encoded_url() {
+        let payload = parse_deep_link_payload("mocamusic://download?url=https://youtu.be/dQw4w9WgXcQ");
+        assert_eq!(payload, Some("https://youtu.be/dQw4w9WgXcQ".to_string()));
+    }
+
+    #[test]
+    fn parse_deep_link_payload_returns_none_when_url_param_missing() {
+        let payload = parse_deep_link_payload("mocamusic://download");
+        assert_eq!(payload, None);
+    }
+
+    #[test]
+    fn parse_deep_link_payload_returns_none_when_url_param_empty() {
+        let payload = parse_deep_link_payload("mocamusic://download?url=");
+        assert_eq!(payload, None);
+    }
+
+    #[test]
+    fn parse_deep_link_payload_returns_none_for_unknown_action() {
+        let payload = parse_deep_link_payload("mocamusic://upload?url=https%3A%2F%2Fyoutu.be%2Fabc");
+        assert_eq!(payload, None);
+    }
+
+    #[test]
+    fn parse_deep_link_payload_returns_none_for_wrong_scheme() {
+        let payload =
+            parse_deep_link_payload("wrongscheme://download?url=https%3A%2F%2Fyoutu.be%2Fabc");
+        assert_eq!(payload, None);
+    }
+
+    #[test]
+    fn parse_deep_link_payload_returns_none_for_empty_string() {
+        let payload = parse_deep_link_payload("");
+        assert_eq!(payload, None);
+    }
+
+    #[test]
+    fn parse_deep_link_payload_returns_none_for_malformed_string() {
+        let payload = parse_deep_link_payload("not a url");
+        assert_eq!(payload, None);
+    }
+
+    // --- DeepLinkState ---
+
+    #[test]
+    fn deep_link_state_starts_empty() {
+        let state = DeepLinkState(Mutex::new(None));
+        assert_eq!(state.0.lock().unwrap().take(), None);
+    }
+
+    #[test]
+    fn deep_link_state_take_drains_stored_payload() {
+        let state = DeepLinkState(Mutex::new(Some("https://youtu.be/abc".to_string())));
+        let payload = state.0.lock().unwrap().take();
+        assert_eq!(payload, Some("https://youtu.be/abc".to_string()));
+    }
+
+    #[test]
+    fn deep_link_state_second_take_returns_none() {
+        let state = DeepLinkState(Mutex::new(Some("https://youtu.be/abc".to_string())));
+        let _ = state.0.lock().unwrap().take();
+        assert_eq!(state.0.lock().unwrap().take(), None);
+    }
+
+    #[test]
+    fn deep_link_state_latest_write_replaces_previous_payload() {
+        let state = DeepLinkState(Mutex::new(Some("https://youtu.be/first".to_string())));
+        *state.0.lock().unwrap() = Some("https://youtu.be/second".to_string());
+        assert_eq!(
+            state.0.lock().unwrap().take(),
+            Some("https://youtu.be/second".to_string())
+        );
+    }
 }
 
 #[derive(Debug)]
@@ -387,15 +554,48 @@ fn main() {
     let _sentry = observability::init();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            focus_main_window(app);
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(DeepLinkState(Mutex::new(None)))
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                let payload = event
+                    .urls()
+                    .iter()
+                    .rev()
+                    .find_map(|url| parse_deep_link_or_log(&app_handle, &url.to_string()));
+
+                let Some(payload) = payload else {
+                    return;
+                };
+                store_pending_deep_link(&app_handle, payload.clone());
+                focus_main_window(&app_handle);
+                let _ = app_handle.emit(DEEP_LINK_DOWNLOAD_EVENT, payload);
+            });
+
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    if let Some(payload) = parse_deep_link_or_log(app.handle(), &url.to_string()) {
+                        store_pending_deep_link(app.handle(), payload);
+                    }
+                }
+            }
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             fetch_video_info,
             download_audio_as_mp3,
             show_in_folder,
             trigger_test_error,
-            get_log_path
+            get_log_path,
+            take_pending_deep_link
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

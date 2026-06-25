@@ -9,17 +9,31 @@ import {useForm} from "react-hook-form";
 import {z} from "zod";
 import {zodResolver} from "@hookform/resolvers/zod";
 
-import {useState} from "react";
+import {useState, useRef, useCallback} from "react";
 import GetVideoInfo from "@/app/usecase/GetVideoInfo";
 import VideoInfoRequest from "@/app/domain/model/VideoInfoRequest";
 import DownloadAudioRequest from "@/app/domain/model/DownloadAudioRequest";
 import DownloadAudio from "@/app/usecase/DownloadAudio";
 import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/form";
 import { invoke } from '@tauri-apps/api/core';
-import { downloadVideoSchema, type DownloadVideoSchema } from "@/lib/schema";
+import { downloadVideoSchema, youtubeRegex, type DownloadVideoSchema } from "@/lib/schema";
 import { sanitizeMusicName } from "@/lib/sanitize";
+import { useDeepLink } from "@/hooks/useDeepLink";
+import BookmarkletDialog from "@/components/internal/bookmarklet-dialog";
 
 import { captureError, logInfo, countMetric } from "@/components/internal/observability-provider";
+
+const MIN_MUSIC_NAME_LENGTH = 5;
+const UNKNOWN_VIDEO_INFO_ERROR_MESSAGE = 'Erro ao obter informações do vídeo.';
+const UNKNOWN_DOWNLOAD_ERROR_MESSAGE = 'Erro ao baixar o vídeo.';
+const MUSIC_NAME_TOO_SHORT_MESSAGE = 'O nome da música deve ter pelo menos 5 caracteres.';
+const DEEP_LINK_DOWNLOAD_IN_PROGRESS_MESSAGE = 'Há um download em andamento. Aguarde a conclusão para iniciar outro.';
+const DEEP_LINK_INVALID_URL_MESSAGE = 'O link recebido não é um vídeo do YouTube válido.';
+
+interface PerformDownloadParams {
+    videoUrl: string;
+    musicName: string;
+}
 
 export default function Page() {
 
@@ -28,6 +42,7 @@ export default function Page() {
     const [downloading, setDownloading] = useState(false);
     const [musicName, setMusicName] = useState('');
     const [videoUrl, setVideoUrl] = useState('');
+    const downloadingRef = useRef(false);
 
     const form = useForm<z.infer<typeof downloadVideoSchema>>({
         resolver: zodResolver(downloadVideoSchema),
@@ -39,12 +54,6 @@ export default function Page() {
 
 
     const {setValue, reset} = form;
-
-    const updateVideoUrl = async (url: string) => {
-        setVideoUrl(url);
-        setValue('url', url);
-        await onSubmit({ url, musicName: '' });
-    }
 
     async function onSubmit(data: DownloadVideoSchema) {
         logInfo('onSubmit', {
@@ -63,31 +72,32 @@ export default function Page() {
         } catch (error) {
             console.error('Falha ao analisar vídeo:', error);
             if (error instanceof Error) captureError(error);
-            toast.error(error instanceof Error ? error.message : 'Erro ao obter informações do vídeo.');
+            toast.error(error instanceof Error ? error.message : UNKNOWN_VIDEO_INFO_ERROR_MESSAGE);
         } finally {
             setVideoInfoLoading(false);
         }
     }
 
-    function openToast(musicPath: string) {
+    function openToast(musicPath: string, downloadedMusicName: string) {
         toast.success("Download concluído!", {
             action: {
                 label: "Abrir pasta",
                 onClick: () => openFileInNativeFileExplorer(musicPath),
             },
-            description: `${musicName} foi salvo com sucesso.`,
+            description: `${downloadedMusicName} foi salvo com sucesso.`,
         });
     }
 
-    async function download() {
-        if (!musicName || musicName.length < 5) {
+    async function performDownload({videoUrl, musicName}: PerformDownloadParams) {
+        if (!musicName || musicName.length < MIN_MUSIC_NAME_LENGTH) {
             form.setError('musicName', {
-                message: 'O nome da música deve ter pelo menos 5 caracteres.'
+                message: MUSIC_NAME_TOO_SHORT_MESSAGE
             });
             return;
         }
         countMetric('download_started');
         setDownloading(true);
+        downloadingRef.current = true;
         try {
             const downloadDirPath = await getDownloadDir();
             const downloadAudio = new DownloadAudio();
@@ -95,13 +105,13 @@ export default function Page() {
             const response = await downloadAudio.execute(downloadAudioRequest);
             console.log('response', response)
             countMetric('download_completed');
-            openToast(downloadDirPath + '/' + musicName);
+            openToast(downloadDirPath + '/' + musicName, musicName);
             resetFormState();
         } catch (error) {
             console.error('Falha ao baixar o áudio:', error);
             if (error instanceof Error) captureError(error);
             const logPath = await getLogPath();
-            toast.error(error instanceof Error ? error.message : 'Erro ao baixar o vídeo.', {
+            toast.error(error instanceof Error ? error.message : UNKNOWN_DOWNLOAD_ERROR_MESSAGE, {
                 description: `Log salvo em: ${logPath}`,
                 action: {
                     label: 'Abrir pasta do log',
@@ -110,8 +120,53 @@ export default function Page() {
             });
         } finally {
             setDownloading(false);
+            downloadingRef.current = false;
         }
     }
+
+    async function download() {
+        await performDownload({videoUrl, musicName});
+    }
+
+    const runAutoDownload = useCallback(async (url: string) => {
+        if (downloadingRef.current) {
+            toast.error(DEEP_LINK_DOWNLOAD_IN_PROGRESS_MESSAGE);
+            return;
+        }
+
+        reset();
+        setValue('url', url);
+        setDownloadAvailable(false);
+        setVideoUrl('');
+        setMusicName('');
+        setVideoInfoLoading(true);
+
+        if (!youtubeRegex.test(url)) {
+            setVideoInfoLoading(false);
+            toast.error(DEEP_LINK_INVALID_URL_MESSAGE);
+            return;
+        }
+
+        countMetric('deep_link_download_started');
+        try {
+            const getVideoInfo = new GetVideoInfo();
+            const response = await getVideoInfo.execute(new VideoInfoRequest(url));
+            const suggestedMusicName = sanitizeMusicName(response.title);
+            setMusicName(suggestedMusicName);
+            setValue('musicName', suggestedMusicName);
+            setVideoUrl(url);
+            setDownloadAvailable(true);
+            await performDownload({videoUrl: url, musicName: suggestedMusicName});
+        } catch (error) {
+            console.error('Falha ao analisar vídeo:', error);
+            if (error instanceof Error) captureError(error);
+            toast.error(error instanceof Error ? error.message : UNKNOWN_VIDEO_INFO_ERROR_MESSAGE);
+        } finally {
+            setVideoInfoLoading(false);
+        }
+    }, [reset, setValue]);
+
+    useDeepLink({ onDownloadRequested: runAutoDownload });
 
     function resetFormState() {
         reset();
@@ -254,13 +309,14 @@ export default function Page() {
                     </Form>
                 </div>
 
-                <div className="mt-5 text-center">
+                <div className="mt-5 flex items-center justify-center gap-4 text-center">
                     <button
                         onClick={resetFormState}
                         className="text-xs text-[#606060] underline-offset-4 transition-colors hover:text-[#0f0f0f] hover:underline"
                     >
                         Começar de novo
                     </button>
+                    <BookmarkletDialog />
                 </div>
 
                 {/* TODO: remover após validar Sentry */}

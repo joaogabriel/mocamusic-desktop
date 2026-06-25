@@ -3,7 +3,7 @@ name: Build Test (Windows)
 on:
   push:
     branches:
-      - windows-log-test
+      - feature/bookmarklet-deeplink
 
 jobs:
   build-windows:

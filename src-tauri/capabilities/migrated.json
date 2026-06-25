@@ -48,6 +48,8 @@
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
     "dialog:default",
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "core:event:default",
+    "deep-link:default"
   ]
 }
