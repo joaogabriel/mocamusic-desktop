@@ -13,7 +13,8 @@
     "targets": "all",
     "externalBin": [
       "binaries/yt-dlp",
-      "binaries/ffmpeg"
+      "binaries/ffmpeg",
+      "binaries/deno"
     ],
     "icon": [
       "icons/32x32.png",
@@ -47,7 +48,13 @@
   "mainBinaryName": "Moca Music",
   "version": "1.1.1",
   "identifier": "com.mocamusic",
-  "plugins": {},
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["mocamusic"]
+      }
+    }
+  },
   "app": {
     "withGlobalTauri": true,
     "windows": [

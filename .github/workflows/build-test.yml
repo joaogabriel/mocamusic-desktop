@@ -3,7 +3,7 @@ name: Build Test (Windows)
 on:
   push:
     branches:
-      - windows-log-test
+      - feature/bookmarklet-deeplink
 
 jobs:
   build-windows:
@@ -50,6 +50,16 @@ jobs:
           Copy-Item -Path $ffmpegExe.FullName -Destination "src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe"
           Remove-Item -Path $ffmpegZip -Force
           Remove-Item -Path "ffmpeg-extract" -Recurse -Force
+
+          $denoZip = "deno-x86_64-pc-windows-msvc.zip"
+          Invoke-WebRequest `
+            -Uri "https://github.com/denoland/deno/releases/latest/download/$denoZip" `
+            -OutFile $denoZip
+          Expand-Archive -Path $denoZip -DestinationPath "deno-extract" -Force
+          $denoExe = Get-ChildItem -Path "deno-extract" -Recurse -Filter "deno.exe" | Select-Object -First 1
+          Copy-Item -Path $denoExe.FullName -Destination "src-tauri/binaries/deno-x86_64-pc-windows-msvc.exe"
+          Remove-Item -Path $denoZip -Force
+          Remove-Item -Path "deno-extract" -Recurse -Force
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
