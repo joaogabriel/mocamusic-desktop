@@ -27,9 +27,9 @@
 
 ## ⚙️ Pré-requisitos
 
-- [Node.js](https://nodejs.org/) `v24` (use `nvm use`)
+- [Node.js](https://nodejs.org/) `v25` (use `nvm use`)
 - [pnpm](https://pnpm.io/)
-- [Rust](https://www.rust-lang.org/) `1.85+`
+- [Rust](https://www.rust-lang.org/) `1.90+`
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) instalado e disponível no PATH
 - [ffmpeg](https://ffmpeg.org/) instalado e disponível no PATH
 

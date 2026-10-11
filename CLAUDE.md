@@ -9,7 +9,7 @@ Moca Music Desktop is a personal-use desktop app (Tauri v2 + Next.js 16) that do
 ## Commands
 
 ```bash
-nvm use                 # Node 24 — required before any other command (see .nvmrc)
+nvm use                 # Node 25 — required before any other command (see .nvmrc)
 pnpm install             # install JS deps
 
 pnpm dev                 # Next.js dev server only (no Tauri shell), with Turbopack
