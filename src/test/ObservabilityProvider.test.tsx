@@ -6,12 +6,14 @@ jest.mock('@sentry/browser', () => ({
   init: jest.fn(),
   captureException: jest.fn(),
   isInitialized: jest.fn().mockReturnValue(false),
+  consoleLoggingIntegration: jest.fn().mockReturnValue({ name: 'ConsoleLogging' }),
+  metrics: { count: jest.fn() },
 }));
 
 import * as Sentry from '@sentry/browser';
 import ObservabilityProvider, { captureError } from '@/components/internal/observability-provider';
 
-const mockSentry = Sentry as {
+const mockSentry = Sentry as unknown as {
   init: jest.Mock;
   captureException: jest.Mock;
   isInitialized: jest.Mock;
