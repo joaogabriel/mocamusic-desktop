@@ -30,7 +30,6 @@ export default function ObservabilityProvider({ children }: { children: ReactNod
       integrations: [
         Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
       ],
-      enableLogs: true,
     });
     Sentry.metrics.count('app_opened');
   }, []);
