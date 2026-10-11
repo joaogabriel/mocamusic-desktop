@@ -9,8 +9,8 @@ node_modules
 /out/
 
 # IA
-.claude
 templates/*
+tasks/*
 
 prompt*.txt
 
@@ -25,3 +25,6 @@ src-tauri/binaries/*.exe
 src-tauri/binaries/yt-dlp-*
 src-tauri/binaries/ffmpeg-*
 src-tauri/binaries/deno-*
+
+# Claude
+.claude
