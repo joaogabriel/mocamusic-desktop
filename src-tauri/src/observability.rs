@@ -3,21 +3,17 @@ pub fn init() -> Option<sentry::ClientInitGuard> {
     if dsn.is_empty() {
         return None;
     }
-    let guard = sentry::init((
-        dsn,
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            environment: Some(
-                if cfg!(debug_assertions) {
-                    "development"
-                } else {
-                    "production"
-                }
-                .into(),
-            ),
-            ..Default::default()
-        },
-    ));
+    let mut options = sentry::ClientOptions::default();
+    options.release = sentry::release_name!();
+    options.environment = Some(
+        if cfg!(debug_assertions) {
+            "development"
+        } else {
+            "production"
+        }
+        .into(),
+    );
+    let guard = sentry::init((dsn, options));
     Some(guard)
 }
 

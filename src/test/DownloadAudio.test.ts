@@ -71,17 +71,37 @@ describe('DownloadAudio', () => {
         expect(mockInvoke).toHaveBeenCalledTimes(1);
     });
 
-    it('throws with user-friendly message when invoke rejects', async () => {
-        mockInvoke.mockRejectedValue('yt-dlp falhou: video is private');
-
+    describe('when invoke rejects', () => {
         const request = new DownloadAudioRequest(
             'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             '/Downloads',
             'song.mp3'
         );
 
-        await expect(new DownloadAudio().execute(request)).rejects.toThrow(
-            'Falha ao baixar o vídeo. Ele pode ser privado, restrito ou indisponível.'
-        );
+        beforeEach(() => {
+            jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        });
+
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('throws the raw backend message when the rejection is a string', async () => {
+            mockInvoke.mockRejectedValue('yt-dlp falhou: video is private');
+
+            await expect(new DownloadAudio().execute(request)).rejects.toThrow('yt-dlp falhou: video is private');
+        });
+
+        it('throws the error message when the rejection is an Error', async () => {
+            mockInvoke.mockRejectedValue(new Error('sidecar not found'));
+
+            await expect(new DownloadAudio().execute(request)).rejects.toThrow('sidecar not found');
+        });
+
+        it('throws the stringified value when the rejection is neither string nor Error', async () => {
+            mockInvoke.mockRejectedValue(42);
+
+            await expect(new DownloadAudio().execute(request)).rejects.toThrow('42');
+        });
     });
 });
